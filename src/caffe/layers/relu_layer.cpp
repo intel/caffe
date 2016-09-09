@@ -12,12 +12,32 @@ void ReLULayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* top_data = top[0]->mutable_cpu_data();
   const int count = bottom[0]->count();
   Dtype negative_slope = this->layer_param_.relu_param().negative_slope();
-#ifdef _OPENMP
-#pragma omp parallel for
-#endif
-  for (int i = 0; i < count; ++i) {
-    top_data[i] = std::max(bottom_data[i], Dtype(0))
-        + negative_slope * std::min(bottom_data[i], Dtype(0));
+
+  if (bottom[0] != top[0]) {
+      caffe_copy(count, bottom_data, top_data);
+  }
+  if (negative_slope == 0) {
+      #pragma omp parallel for
+      for (int i = 0; i < count; ++i) {
+          top_data[i] *= (bottom_data[i] > 0);
+      }
+     /* int C = bottom[0]->shape(1);
+      int NHW = count / C;
+
+      #pragma omp parallel for
+      for (int i = 0; i < C; ++i) {
+          Dtype* top_data_tmp = top_data + i * NHW;
+          const Dtype* bot_data_tmp = bottom_data + i * NHW;
+          for (int j = 0; j < NHW; ++j) {
+              top_data_tmp[i] *= (bot_data_tmp[i] > 0);
+          }
+      }*/
+  }
+  else {
+      #pragma omp parallel for
+      for (int i = 0; i < count; ++i) {
+          top_data[i] *= ((bottom_data[i] >= 0) + (bottom_data[i] < 0) * negative_slope);
+      }
   }
 }
 
@@ -31,12 +51,33 @@ void ReLULayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     const int count = bottom[0]->count();
     Dtype negative_slope = this->layer_param_.relu_param().negative_slope();
+/*
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < count; ++i) {
       bottom_diff[i] = top_diff[i] * ((bottom_data[i] > 0)
           + negative_slope * (bottom_data[i] <= 0));
+    }
+*/
+    if (bottom[0] != top[0]) {
+        caffe_copy(count, top_diff, bottom_diff);
+    }
+    if (negative_slope == 0) {
+        #pragma omp parallel for
+        for (int i = 0; i < count; ++i) {
+            if (bottom_data[i] < 0) {
+                bottom_diff[i] = 0;
+            }
+        }
+    }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < count; ++i) {
+            if (bottom_data[i] < 0) {
+                bottom_diff[i] *= negative_slope;
+            }
+        }
     }
   }
 }
