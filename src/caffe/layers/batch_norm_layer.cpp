@@ -159,12 +159,11 @@ void BatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
               mean_.mutable_cpu_data());
   }
 
-  // subtract mean
   if (!use_global_stats_) {
-    // compute variance using var(X) = E((X-EX)^2)
+    // compute variance using var(X) = E(X^2) - (EX)^2
     caffe_powx(bottom[0]->count(), bottom_data, Dtype(2),
-        x_norm_.mutable_cpu_data());  // (X-EX)^2
-
+        x_norm_.mutable_cpu_data());  // X^2
+    // compute variance
     batch_variance(x_norm_.mutable_cpu_data(), num, channels_, spatial_dim, \
             mean_.cpu_data(), variance_.mutable_cpu_data());
     // compute and save moving average
@@ -180,7 +179,7 @@ void BatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         this->blobs_[3]->mutable_cpu_data());
   }
 
-  // normalize variance
+  // subtract mean and normalize variance
   batch_norm(bottom[0]->mutable_cpu_data(), mean_.cpu_data(), variance_.cpu_data(), \
          scale_data, shift_data, eps_, num, channels_, spatial_dim, x_norm_.mutable_cpu_data(), \
          top_data);
@@ -259,9 +258,10 @@ void BatchNormLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   const Dtype* scale_data = this->blobs_[0]->cpu_data();
   Dtype* scale_diff = this->blobs_[0]->mutable_cpu_diff();
   Dtype* shift_diff = this->blobs_[1]->mutable_cpu_diff();
-
+  
+  // compute scale diff and shift diff
   batch_diff(top_diff, norm_data, num, channels_, spatial_dim, scale_diff, shift_diff);
-
+  // compute bottom diff
   batch_x_diff(top_diff, norm_data, variance_.cpu_data(), scale_diff, \
         shift_diff, scale_data, eps_, num, channels_, spatial_dim, bottom_diff);
 }
