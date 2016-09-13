@@ -88,7 +88,7 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolution(const vector<Blob<Dtype>*>& 
     uint32_t kh = this->kernel_h_;
 
     tensor::dims convolutionStrides {this->stride_h_, this->stride_w_};
-    tensor::nd_offset padding {this->pad_h_, this->pad_w_};
+    tensor::dims padding {this->pad_h_, this->pad_w_};
 
     // ---- Initialize memory descriptors (fromat = any) to create convolution descriptor -------------
     memory::precision mpcsn = memory::precision::f32;
