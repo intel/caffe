@@ -178,7 +178,7 @@ bool ReadImageToDatum(const string& filename, const int label,
 
     if ( !(is_img_grayscale || is_img_bgr || is_img_bgra) ) {
       LOG(ERROR) << "Images with " << cv_img.channels() <<
-                    " channels unspported: " << filename;
+                    " channels unsupported: " << filename;
       return false;
     }
 
