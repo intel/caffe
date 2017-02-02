@@ -171,7 +171,6 @@ bool ReadImageToDatum(const string& filename, const int label,
       LOG(ERROR) << "Could not open or find file " << filename;
       return false;
     }
-
     bool is_img_grayscale = cv_img.channels() == 1;
     bool is_img_bgr = cv_img.channels() == 3;
     bool is_img_bgra = cv_img.channels() == 4;
