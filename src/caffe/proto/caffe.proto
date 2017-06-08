@@ -830,8 +830,8 @@ message BatchNormParameter {
   optional Engine engine = 4 [default = DEFAULT];
   optional bool use_weight_bias = 5 [default = true];
   optional bool bias_term = 6 [default = true]; // whether to have bias terms
-  optional FillerParameter filler = 7; // The filler for the weight
-  optional FillerParameter bias_filler = 8; // The filler for the bias
+  optional FillerParameter scale_filler = 7; // The filler for the weight
+  optional FillerParameter shift_filler = 8; // The filler for the bias
 }
 
 message SplitParameter {

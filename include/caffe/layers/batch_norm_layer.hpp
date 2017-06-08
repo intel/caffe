@@ -119,12 +119,6 @@ class BatchNormLayer : public Layer<Dtype> {
   Dtype moving_average_fraction_;
   int channels_;
   Dtype eps_;
-
-  // extra temporarary variables is used to carry out sums/broadcasting
-  // using BLAS
-  Blob<Dtype> batch_sum_multiplier_;
-  Blob<Dtype> num_by_chans_;
-  Blob<Dtype> spatial_sum_multiplier_;
 };
 
 }  // namespace caffe
