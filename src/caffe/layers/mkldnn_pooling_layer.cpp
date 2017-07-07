@@ -175,7 +175,11 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
         pooling_algorithm = algorithm::pooling_max;
         break;
     case PoolingParameter_PoolMethod_AVE:
-        pooling_algorithm = algorithm::pooling_avg;
+        if (this->layer_param_.pooling_param().avg_include_pad()) {
+            pooling_algorithm = algorithm::pooling_avg_include_padding;
+        }else {
+            pooling_algorithm = algorithm::pooling_avg_exclude_padding;
+        }
         break;
     case PoolingParameter_PoolMethod_STOCHASTIC:
         NOT_IMPLEMENTED;
@@ -271,7 +275,9 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
     fwd_top_data.reset(new MKLDNNData<Dtype>(usr_top_data_mpd, prv_fwd_top_data_mpd, top[0], this));
     fwd_top_data_memory = fwd_top_data->create_output_memory();
 
-    if ( propagation == prop_kind::forward_training && pooling_algorithm != algorithm::pooling_avg) {
+    if ( propagation == prop_kind::forward_training &&
+            pooling_algorithm != algorithm::pooling_avg_exclude_padding &&
+            pooling_algorithm != algorithm::pooling_avg_include_padding) {
         indices_pd.reset(new MemPD(poolingFwd_pd->workspace_primitive_desc()));
         indices_memory.reset(new memory(*indices_pd, reinterpret_cast<void *>(mask)));
         poolingFwd.reset(new pooling_forward(*poolingFwd_pd, *fwd_bottom_data_primitive, *fwd_top_data_memory, *indices_memory));
@@ -289,6 +295,10 @@ void MKLDNNPoolingLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
                                             ,const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNPoolingLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
+#ifdef DEBUG
+    LOG(INFO) << "MKLDNNPoolingLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
+#endif
+
     if (NULL == poolingFwd_pd)
         InitPoolingFwd(bottom, top);
     // making reorders if needed.
@@ -315,7 +325,12 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingBwd(const vector<Blob<Dtype>*>& top
         pooling_algorithm = algorithm::pooling_max;
         break;
     case PoolingParameter_PoolMethod_AVE:
-        pooling_algorithm = algorithm::pooling_avg;
+        if (this->layer_param_.pooling_param().avg_include_pad()) {
+            pooling_algorithm = algorithm::pooling_avg_include_padding;
+        }else {
+            pooling_algorithm = algorithm::pooling_avg_exclude_padding;
+        }
+
         break;
     case PoolingParameter_PoolMethod_STOCHASTIC:
         NOT_IMPLEMENTED;
@@ -342,7 +357,7 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingBwd(const vector<Blob<Dtype>*>& top
 
     int32_t pr = this->pad_r_;
     int32_t pl = this->pad_l_;
-    
+
     bool top_diff_is_prv = (const_cast<Dtype*>(top[0]->prv_diff()) != NULL);
 
     engine cpu_engine = CpuEngine::Instance().get_engine();
@@ -359,6 +374,18 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingBwd(const vector<Blob<Dtype>*>& top
         shared_ptr<MKLDNNMemoryDescriptor<Dtype, true> > mem_descr
             = get_mkldnn_prv_descriptor<Dtype, true>(top[0]);
         bwd_cmfmt = static_cast<memory::format>(mem_descr->prv_memory_pd()->desc().data.format);
+    }
+
+    bool bottom_data_is_prv = (const_cast<Dtype*>(bottom[0]->prv_data()) != NULL);
+    if (bottom_data_is_prv) {
+        shared_ptr<MKLDNNMemoryDescriptor<Dtype, false> > mem_descr
+            = get_mkldnn_prv_descriptor<Dtype, false>(bottom[0]);
+        memory::format fwd_prv_bottom_data_mfmt = static_cast<memory::format>(mem_descr->prv_memory_pd()->desc().data.format);
+#ifdef DEBUG
+        LOG(INFO) << "MKLDNNPoolingLayer<Dtype>::InitPoolingBwd: memory format of prv bottom data is: " << fwd_prv_bottom_data_mfmt;
+        LOG(INFO) << "MKLDNNPoolingLayer<Dtype>::InitPoolingBwd: Reorder the top and bottom diff to the format of prv bottom data! (Performance consideration)";
+#endif
+        bwd_cmfmt = fwd_prv_bottom_data_mfmt;
     }
 
     shared_ptr<memory::desc> init_bwd_bottom_md(new memory::desc({bottom_tz}, mpcsn, bwd_cmfmt));
@@ -405,7 +432,8 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingBwd(const vector<Blob<Dtype>*>& top
     bwd_top_diff->name = "bwd_top_diff_data   @ " + this->layer_param_.name();
     bwd_top_diff_primitive = bwd_top_diff->create_input(false);
 
-    if (pooling_algorithm != algorithm::pooling_avg)
+    if (pooling_algorithm != algorithm::pooling_avg_include_padding &&
+         pooling_algorithm != algorithm::pooling_avg_exclude_padding)
         poolingBwd.reset(new pooling_backward(*poolingBwd_pd,
                     *bwd_top_diff_primitive, *indices_memory,
                     *bwd_bottom_diff_memory));
@@ -422,6 +450,10 @@ void MKLDNNPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
                                             , const vector<Blob<Dtype>*>& bottom)
 {
     VLOG(1) << "MKLDNNPoolingLayer<Dtype>::Backward_cpu: " << this->layer_param_.name();
+#ifdef DEBUG
+    LOG(INFO) << "MKLDNNPoolingLayer<Dtype>::Backward_cpu: " << this->layer_param_.name();
+#endif
+
     if (!propagate_down[0]) {
         return;
     }
@@ -433,7 +465,38 @@ void MKLDNNPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
 
     PERFORMANCE_EVENT_ID_INIT(perf_id_bw_, PERFORMANCE_MKLDNN_NAME("BW"));
     PERFORMANCE_MEASUREMENT_BEGIN();
+#ifdef DEBUG
+    if (bottom[0]->prv_data() != NULL)
+    {
+        LOG(INFO) << "Debug: Bottom prv data: " << *bottom[0]->prv_data();
+    }
+    else
+    {
+        LOG(INFO) << "Debug: Bottom prv data is NULL!";
+        //LOG(INFO) << "Debug: Bottom cpu data: " << *bottom[0]->cpu_data();
+    }
+
+    if (top[0]->prv_diff() != NULL)
+    {
+        LOG(INFO) << "Debug: Top prv diff: " << *top[0]->prv_diff();
+    }
+    else
+    {
+        LOG(INFO) << "Debug: Top prv diff is NULL!";
+        //LOG(INFO) << "Debug: Top cpu diff: " << *top[0]->cpu_diff();
+    }
+#endif
     poolingBwd.submit();
+#ifdef DEBUG
+    if (bottom[0]->prv_diff() != NULL)
+    {
+        LOG(INFO) << "Debug: Bottom prv diff: " << *bottom[0]->prv_diff();
+    }
+    else
+    {
+        LOG(INFO) << "Debug: Bottom prv diff is NULL!";
+    }
+#endif
     PERFORMANCE_MEASUREMENT_END_ID(perf_id_bw_);
 }
 

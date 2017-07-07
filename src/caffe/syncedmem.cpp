@@ -91,11 +91,6 @@ inline void SyncedMemory::to_cpu() {
     break;
   case SYNCED_PRV:
   case HEAD_AT_CPU:
-    if (prv_descriptor_.get()) {
-        if ( prv_descriptor_->on_to_cpu())
-            head_ = SYNCED;
-    }
-    break;
   case SYNCED:
     break;
   }

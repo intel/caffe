@@ -77,6 +77,9 @@ public:
           PERFORMANCE_EVENT_ID_RESET(perf_id_bw_);
     }
     ~MKLDNNBatchNormLayer() {}
+#ifdef USE_MLSL
+    virtual bool ParamNeedReduce(int param_id) { return param_id >= 3; }
+#endif
 
 protected:
     virtual void LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top);
@@ -120,6 +123,14 @@ class MKLDNNConvolutionLayer : public MKLDNNLayer<Dtype> , public ConvolutionLay
 public:
     explicit MKLDNNConvolutionLayer(const LayerParameter& param);
     virtual ~MKLDNNConvolutionLayer() {}
+
+    //For test the parameters of kernel/stride/pad
+    int GetKernelWidth()  { return kernel_w_; }
+    int GetKernelHeight() { return kernel_h_; }
+    int GetStrideWidth()  { return stride_w_; }
+    int GetStrideHeight() { return stride_h_; }
+    int GetPadWidth()     { return pad_w_; }
+    int GetPadHeight()    { return pad_h_; }
 protected:
     virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top);
     virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top);
@@ -153,6 +164,7 @@ private:
                     , bwdw_top_diff_primitive, bwdw_bottom_data_primitive;
     int32_t width_, height_, width_out_, height_out_, kernel_w_, kernel_h_, stride_w_, stride_h_;
     int  pad_w_, pad_h_;
+    mkldnn::algorithm  conv_algorithm;
 
     PERFORMANCE_EVENT_ID_DECL(perf_id_fw_);
     PERFORMANCE_EVENT_ID_DECL(perf_id_bw_);
@@ -236,6 +248,7 @@ private:
     shared_ptr<lrn_backward::primitive_desc> lrnBwd_pd;
     MKLDNNPrimitive<Dtype> lrnFwd;
     MKLDNNPrimitive<Dtype> lrnBwd;
+    shared_ptr<memory::desc> bottom_md;
     shared_ptr<memory> fwd_top_data_memory, bwd_bottom_diff_memory, scratch_memory;
     shared_ptr<primitive> fwd_bottom_data_primitive, bwd_top_diff_primitive;
     Dtype alpha_, beta_, k_;
