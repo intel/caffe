@@ -275,6 +275,10 @@ int main(int argc, char** argv) {
 
   ::google::InitGoogleLogging(argv[0]);
 
+#ifdef USE_MLSL
+  caffe::mn::init(&argc, &argv);
+#endif
+
   string model_file   = argv[1];
   string trained_file = argv[2];
   string mean_file    = argv[3];
