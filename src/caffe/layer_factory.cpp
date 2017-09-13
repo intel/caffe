@@ -48,6 +48,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/layers/batch_norm_layer.hpp"
 #include "caffe/layers/concat_layer.hpp"
 #include "caffe/layers/conv_layer.hpp"
+#include "caffe/layers/deconv_layer.hpp"
 #include "caffe/layers/inner_product_layer.hpp"
 #include "caffe/layers/lrn_layer.hpp"
 #include "caffe/layers/pooling_layer.hpp"
