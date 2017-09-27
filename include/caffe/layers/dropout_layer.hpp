@@ -103,13 +103,14 @@ class DropoutLayer : public NeuronLayer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
-  /// when divided by UINT_MAX, the randomly generated values @f$u\sim U(0,1)@f$
+  /// when divided by uint_MAX, the randomly generated values @f$u\sim U(0,1)@f$
   Blob<unsigned int> rand_vec_;
   /// the probability @f$ p @f$ of dropping any input
   Dtype threshold_;
   /// the scale for undropped inputs at train time @f$ 1 / (1 - p) @f$
   Dtype scale_;
   unsigned int uint_thres_;
+  bool scale_train_;
 };
 
 }  // namespace caffe
