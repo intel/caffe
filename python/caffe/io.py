@@ -155,6 +155,7 @@ class Transformer:
         self.raw_scale = {}
         self.mean = {}
         self.input_scale = {}
+        self.is_flow = {}
 
     def __check_input(self, in_):
         if in_ not in self.inputs:
@@ -320,6 +321,16 @@ class Transformer:
         self.__check_input(in_)
         self.input_scale[in_] = scale
 
+    def set_is_flow(self, in_, is_flow):
+        """
+	Indicate if input is a flow image
+
+        Take
+        in_: which input to assign this scale factor
+        is_flow: boolean indicating if the input is a flow image
+        """
+        self.__check_input(in_)
+        self.is_flow[in_] = is_flow
 
 ## Image IO
 
