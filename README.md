@@ -1,14 +1,18 @@
-# Support Flow LRCN From Quadra_L http://www.swcontest.net/index.php?a=show&m=news&aid=177
-Before make this caffe, you have to install protocol buffer 3.4.0,
-referring this link http://blog.csdn.net/twilightdream/article/details/72953338,
-then, sudo -H pip install --upgrade protobuf==3.1.0.post1 .
+# Support Flow LRCN From Quadra_L
+- [Quadra_L](http://www.swcontest.net/index.php?a=show&m=news&aid=177)
+## Preparing
+- install protocol buffer 3.4.0, referring this link http://blog.csdn.net/twilightdream/article/details/72953338,
+- sudo -H pip install --upgrade protobuf==3.1.0.post1 .
 
-Next, cd caffe, make all and make pycaffe, remember WITH_PYTHON_LAYER := 1 !
+## Building
+- remember WITH_PYTHON_LAYER := 1 !
+- make all
+- make pycaffe,
 
-Then, download data and models from http://www.eecs.berkeley.edu/~lisa_anne/LRCN_video,
-change my path like '/home/link/frames' in sequence_input_layer.py to your path and modify other relative path.
-
-Finally, bash run_lstm_flow.sh, start training!
+## Training
+- download data and models from http://www.eecs.berkeley.edu/~lisa_anne/LRCN_video,
+- change my path like '/home/link/frames' in sequence_input_layer.py to your path and modify other relative path.
+- bash run_lstm_flow.sh, start training!
 
 # Caffe
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
