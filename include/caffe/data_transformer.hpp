@@ -144,8 +144,10 @@ class DataTransformer {
    *    set_cpu_data() is used. See data_layer.cpp for an example.
    */
 
+
   void Transform(const Datum& datum, Blob<Dtype>* transformed_blob)
                                {Transform(datum, transformed_blob, rand_num_);}
+
   void Transform(const Datum& datum, Blob<Dtype>* transformed_blob,
                                                        RandNumbers& rand_num);
 
@@ -351,6 +353,8 @@ class DataTransformer {
  protected:
   GenRandNumbers rand_num_;
 
+  void Transform(const Datum& datum, Dtype* transformed_data);
+
   // Transform and return the transformation information.
   template<typename AnnotationHandler = EmptyType>
   void Transform(const Datum& datum, Dtype* transformed_data,
@@ -385,6 +389,7 @@ class DataTransformer {
                  NormalizedBBox* crop_bbox, RandNumbers& rand_num,
                  const bool do_mirror, const bool has_uint8,
                  const bool has_mean_file, const bool has_mean_values);
+
 
   template<bool do_mirror, bool has_mean_file, bool has_mean_values>
   void Transform(const cv::Mat& cv_img,
