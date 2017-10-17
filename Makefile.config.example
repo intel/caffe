@@ -1,4 +1,3 @@
-# 
 # All modification made by Intel Corporation: © 2016 Intel Corporation
 # 
 # All contributions by the University of California:
@@ -43,18 +42,6 @@
 # CPU-only switch (uncomment to build without GPU support).
 CPU_ONLY := 1
 
-USE_MKL2017_AS_DEFAULT_ENGINE := 1
-# or put this at the top your train_val.protoxt or solver.prototxt file:
-# engine: "MKL2017" 
-# or use this option with caffe tool:
-# -engine "MKL2017"
-
-# USE_MKLDNN_AS_DEFAULT_ENGINE flag is OBSOLETE
-# Put this at the top your train_val.protoxt or solver.prototxt file:
-# engine: "MKLDNN" 
-# or use this option with caffe tool:
-# -engine "MKLDNN"
-
 # uncomment to disable IO dependencies and corresponding data layers
 # USE_OPENCV := 0
 # USE_LEVELDB := 0
@@ -67,6 +54,9 @@ USE_MKL2017_AS_DEFAULT_ENGINE := 1
 
 # Uncomment if you're using OpenCV 3
 # OPENCV_VERSION := 3
+
+# Uncomment if you want to dump layer input/output data for debug
+# DUMP_LAYER_IO := 1
 
 # To customize your choice of compiler, uncomment and set the following.
 # N.B. the default for Linux is g++ and the default for OSX is clang++
@@ -81,19 +71,23 @@ USE_MKL2017_AS_DEFAULT_ENGINE := 1
 # USE_MLSL :=1
 
 # CUDA directory contains bin/ and lib/ directories that we need.
-CUDA_DIR := /usr/local/cuda
+# CUDA_DIR := /usr/local/cuda
 # On Ubuntu 14.04, if cuda tools are installed via
 # "sudo apt-get install nvidia-cuda-toolkit" then use this instead:
 # CUDA_DIR := /usr
 
-# CUDA architecture setting: going with all of them.
-# For CUDA < 6.0, comment the *_50 lines for compatibility.
-CUDA_ARCH := -gencode arch=compute_20,code=sm_20 \
-	     -gencode arch=compute_20,code=sm_21 \
-	     -gencode arch=compute_30,code=sm_30 \
-	     -gencode arch=compute_35,code=sm_35 \
-	     -gencode arch=compute_50,code=sm_50 \
-	     -gencode arch=compute_50,code=compute_50
+# For CUDA < 6.0, comment the *_50 through *_61 lines for compatibility.
+# For CUDA < 8.0, comment the *_60 and *_61 lines for compatibility.
+# CUDA_ARCH := -gencode arch=compute_20,code=sm_20 \
+#             -gencode arch=compute_20,code=sm_21 \
+#             -gencode arch=compute_30,code=sm_30 \
+#             -gencode arch=compute_35,code=sm_35 \
+#             -gencode arch=compute_50,code=sm_50 \
+#             -gencode arch=compute_52,code=sm_52 \
+#             -gencode arch=compute_60,code=sm_60 \
+#             -gencode arch=compute_61,code=sm_61 \
+#             -gencode arch=compute_61,code=compute_61
+
 
 # BLAS choice:
 # atlas for ATLAS (default)
@@ -103,12 +97,15 @@ BLAS := mkl
 # Custom (MKL/ATLAS/OpenBLAS) include and lib directories.
 # Leave commented to accept the defaults for your choice of BLAS
 # (which should work)!
-# BLAS_INCLUDE := /path/to/your/blas
-# BLAS_LIB := /path/to/your/blas
+BLAS_INCLUDE:=/home/ubuntu/data/caffe/external/mkl/mklml_lnx_2018.0.20170720/include
+BLAS_LIB:=/home/ubuntu/data/caffe/external/mkl/mklml_lnx_2018.0.20170720/lib
 
+
+# USE_MKL2017_AS_DEFAULT_ENGINE := 1
 # Homebrew puts openblas in a directory that is not on the standard search path
 # BLAS_INCLUDE := $(shell brew --prefix openblas)/include
 # BLAS_LIB := $(shell brew --prefix openblas)/lib
+
 
 # This is required only if you will compile the matlab interface.
 # MATLAB directory should contain the mex binary in /bin.
@@ -118,7 +115,8 @@ BLAS := mkl
 # NOTE: this is required only if you will compile the python interface.
 # We need to be able to find Python.h and numpy/arrayobject.h.
 PYTHON_INCLUDE := /usr/include/python2.7 \
-		/usr/lib/python2.7/dist-packages/numpy/core/include
+                  /usr/lib64/python2.7/site-packages/numpy/core/include \
+                  /usr/local/lib/python2.7/dist-packages/numpy/core/include
 # Anaconda Python distribution is quite popular. Include path:
 # Verify anaconda location, sometimes it's in root.
 # ANACONDA_HOME := $(HOME)/anaconda
@@ -140,11 +138,13 @@ PYTHON_LIB := /usr/lib
 # PYTHON_LIB += $(shell brew --prefix numpy)/lib
 
 # Uncomment to support layers written in Python (will link against Python libs)
-# WITH_PYTHON_LAYER := 1
+WITH_PYTHON_LAYER := 1
 
 # Whatever else you find you need goes here.
 INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include
-LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib
+# If you use Ubuntu, uncomment below
+INCLUDE_DIRS += /usr/include/hdf5/serial/
+LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib /usr/lib/x86_64-linux-gnu/hdf5/serial/
 
 # If Homebrew is installed at a non standard location (for example your home directory) and you use it for general dependencies
 # INCLUDE_DIRS += $(shell brew --prefix)/include
@@ -169,9 +169,6 @@ DISTRIBUTE_DIR := distribute
 
 # The ID of the GPU that 'make runtest' will use to run unit tests.
 TEST_GPUID := 0
-
-# Uncomment for enabling SGD fusion
-# ENABLE_SGD_FUSION := 1
 
 # enable pretty build (comment to see full commands)
 Q ?= @
