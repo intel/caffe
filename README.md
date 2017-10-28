@@ -1,17 +1,6 @@
-# 新版本说明
-Intel Caffe并未实现3d卷积，3d池化等一系列新功能层，按照大赛要求，本队务参照https://github.com/facebook/C3D 中实现的开源代码，为Intel Caffe增加了3Dconv，3Dpooling，在ubuntu16下通过编译。
+#Add new example for C3D Network use intel caffe
+#fix a typo(bug) of a input_data_layer
 
-# 安装说明
-所需依赖：参见intel caffe的依赖
-OS环境：ubuntu 16
-安装方法：
-      step1. make all
-      step2. make test
-      step3. make runtest
-
-
-# 联系
-如有任何疑问烦请issue即可
 # Caffe
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
 [![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
