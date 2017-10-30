@@ -66,8 +66,8 @@ def main():
 
 if __name__ == '__main__':
 
-    base = '/home/ubuntu/data/Emotion/model/signLanguageVideo/rgbFrames'
-    savebase = '/home/ubuntu/data/Emotion/model/signLanguageVideo/flowFrames'
+    base = '/home/link/rgbFrames'
+    savebase = '/home/link/flowFrames'
 
     # Flow Options:
     alpha = 0.012
