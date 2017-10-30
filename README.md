@@ -1,13 +1,14 @@
 # Support Flow LRCN From Quadra_L
 - [Quadra_L](http://www.swcontest.net/index.php?a=show&m=news&aid=177)
 ## Preparing
-- install protocol buffer 3.4.0, referring this link http://blog.csdn.net/twilightdream/article/details/72953338,
-- sudo -H pip install --upgrade protobuf==3.1.0.post1 .
-
+- install protocol buffer 3.4.0, referring this link http://blog.csdn.net/twilightdream/article/details/72953338
+- sudo -H pip install --upgrade protobuf==3.1.0.post1
+- sudo apt-get install libhdf5-dev
+- sudo apt-get install python-h5py
 ## Building
 - remember WITH_PYTHON_LAYER := 1 !
 - make all
-- make pycaffe,
+- make pycaffe
 
 ## Training
 - download data and models from http://www.eecs.berkeley.edu/~lisa_anne/LRCN_video,
