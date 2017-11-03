@@ -1,5 +1,6 @@
-#Add new example for C3D Network use intel caffe
-#fix a typo(bug) of a input_data_layer
+# New Features!
+- Add new example for C3D Network use intel caffe
+- fix a typo(bug) of a input_data_layer
 
 # Caffe
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
