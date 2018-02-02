@@ -46,16 +46,24 @@ MultiSync<Dtype>::MultiSync(shared_ptr<Solver<Dtype> > root_solver)
         : solver(boost::make_shared<MultiSolver<Dtype> >(root_solver)),
           layers(root_solver->net()->layers()),
           net(root_solver->net()),
-          net_params(root_solver->net()->learnable_params()) {
+          net_params(root_solver->net()->learnable_params()),
+          reduce_req_vec(net_params.size(), NULL),
+          irecv_req_vec(net_params.size(), MPI_REQUEST_NULL),
+          broadcast_req_vec(net_params.size(), NULL),
+          irecv_done(net_params.size(), true),
+          broadcast_launched(net_params.size(), true),
+          distrib_bcast(NULL) {
   root_solver->param().set_disabled_update(true);
 
-  if (root_solver->iter() == 0)
-    root_solver->set_iter(1);
 
   layer_param_ids.resize(layers.size());
 #ifdef FW_OVERLAP_OPT
   param_ids_finished_flags.resize(layers.size());
 #endif
+
+  if (mn::use_param_server() && !mn::is_param_server()) {
+    distrib_bcast = mn::create_distrib();
+  }
 
   for (int layer_id = 0; layer_id < layers.size(); layer_id++) {
     shared_ptr<Layer<Dtype> > layer = layers[layer_id];

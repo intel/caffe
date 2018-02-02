@@ -66,12 +66,22 @@ void MKLDNNSplitLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     CHECK_EQ(count, top[i]->count());
   }
   size_t dim_src = bottom[0]->shape().size();
-  this->sizes_src_.resize(dim_src);
-  this->strides_src_.resize(dim_src);
+  this->reshape = false;
+  if (this->sizes_src_.size() != dim_src || this->strides_src_.size() != dim_src) {
+    this->sizes_src_.resize(dim_src);
+    this->strides_src_.resize(dim_src);
+    this->reshape = true;
+  }
   for (size_t d = 0; d < dim_src; ++d) {
-    this->sizes_src_[d] = bottom[0]->shape()[d];
-    this->strides_src_[d] = (d == 0) ?
-                1 : this->strides_src_[d-1]*this->sizes_src_[d-1];
+    if (this->sizes_src_[d] != bottom[0]->shape()[d]) {
+      this->sizes_src_[d] = bottom[0]->shape()[d];
+      this->reshape = true;
+    }
+    size_t stride = (d == 0) ? 1 : this->strides_src_[d-1]*this->sizes_src_[d-1];
+    if (this->strides_src_[d] != stride) {
+      this->strides_src_[d] = stride;
+      this->reshape = true;
+    }
   }
 
   // TODO: Add checking to reinitialize Backward, to be
@@ -133,6 +143,9 @@ void MKLDNNSplitLayer<Dtype>::InitSplitBwd(const vector<Blob<Dtype>*>& bottom,
   // Gather diff descriptors of top difs (inputs for BW)
   std::vector<memory::primitive_desc> prv_diff_srcs_mpd;
   boost::shared_ptr<memory::primitive_desc> mpd_ptr;
+  bwd_top_diffs_.clear();
+  bwd_top_diff_primitives_.clear();
+  bwd_top_diffs_primitives_at_.clear();
   for (int i = 0; i < top.size(); ++i) {
     // If diff is in private layout then copy descriptor from it
     memory::format diff_src_mfmt = mfmt_nchw;
@@ -199,11 +212,11 @@ void MKLDNNSplitLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 {
     VLOG(1) << "MKLDNNSplitLayer<Dtype>::Backward_cpu: " << this->layer_param_.name();
     // If no gradient to be computed for eariler layers then we do need to do
-    //  any computation 
+    //  any computation
     if (!propagate_down[0]) {
         return;
     }
-    if (splitBwd_pd_ == NULL) {
+    if (splitBwd_pd_ == NULL || this->reshape) {
         InitSplitBwd(bottom, top);
     }
     

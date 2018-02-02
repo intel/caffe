@@ -43,13 +43,13 @@
 # CPU-only switch (uncomment to build without GPU support).
 CPU_ONLY := 1
 
-USE_MKL2017_AS_DEFAULT_ENGINE := 1
+# USE_MKL2017_AS_DEFAULT_ENGINE := 1
 # or put this at the top your train_val.protoxt or solver.prototxt file:
 # engine: "MKL2017" 
 # or use this option with caffe tool:
 # -engine "MKL2017"
 
-# USE_MKLDNN_AS_DEFAULT_ENGINE flag is OBSOLETE
+USE_MKLDNN_AS_DEFAULT_ENGINE := 1
 # Put this at the top your train_val.protoxt or solver.prototxt file:
 # engine: "MKLDNN" 
 # or use this option with caffe tool:
@@ -76,6 +76,11 @@ USE_MKL2017_AS_DEFAULT_ENGINE := 1
 # already. 
 # BOOST_ROOT := 
 
+# Use remove batch norm optimization to boost inference
+DISABLE_BN_FOLDING := 0
+
+#Use conv/eltwise/relu layer fusion to boost inference.
+DISABLE_CONV_SUM_FUSION := 0
 # Intel(r) Machine Learning Scaling Library (uncomment to build
 # with MLSL for multi-node training)
 # USE_MLSL :=1
@@ -115,6 +120,8 @@ BLAS := mkl
 # MATLAB_DIR := /usr/local
 # MATLAB_DIR := /Applications/MATLAB_R2012b.app
 
+SERIAL_HDF5_INCLUDE := /usr/include/hdf5/serial/
+
 # NOTE: this is required only if you will compile the python interface.
 # We need to be able to find Python.h and numpy/arrayobject.h.
 PYTHON_INCLUDE := /usr/include/python2.7 \
@@ -143,7 +150,7 @@ PYTHON_LIB := /usr/lib
 # WITH_PYTHON_LAYER := 1
 
 # Whatever else you find you need goes here.
-INCLUDE_DIRS := $(PYTHON_INCLUDE) /usr/local/include
+INCLUDE_DIRS := $(PYTHON_INCLUDE) ${SERIAL_HDF5_INCLUDE} /usr/local/include
 LIBRARY_DIRS := $(PYTHON_LIB) /usr/local/lib /usr/lib
 
 # If Homebrew is installed at a non standard location (for example your home directory) and you use it for general dependencies
@@ -169,9 +176,6 @@ DISTRIBUTE_DIR := distribute
 
 # The ID of the GPU that 'make runtest' will use to run unit tests.
 TEST_GPUID := 0
-
-# Uncomment for enabling SGD fusion
-# ENABLE_SGD_FUSION := 1
 
 # enable pretty build (comment to see full commands)
 Q ?= @

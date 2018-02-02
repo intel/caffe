@@ -46,7 +46,7 @@ namespace caffe {
 
 template <typename Dtype>
 MKLDNNLRNLayer<Dtype>::MKLDNNLRNLayer(const LayerParameter& param)
-        : MKLDNNLayer<Dtype>(), Layer<Dtype>(param)
+        : MKLDNNLayer<Dtype>(param), Layer<Dtype>(param)
         , fwd_top_data(NULL), fwd_bottom_data(NULL)
         , bwd_top_diff(NULL), bwd_bottom_diff(NULL)
         , lrnFwd_pd(NULL), lrnBwd_pd(NULL)
@@ -87,10 +87,14 @@ void MKLDNNLRNLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom
     // TODO: k_ is not used now in mkldnn
     k_ = this->layer_param_.lrn_param().k();
 
-    width_ = bottom[0]->width();
-    height_ = bottom[0]->height();
-    num_ = bottom[0]->num();
-    channels_ = bottom[0]->channels();
+    this->reshape = (this->width_ == bottom[0]->width() &&
+                     this->height_ == bottom[0]->height() &&
+                     this->channels_ == bottom[0]->channels() &&
+                     this->num_ == bottom[0]->num()) ? false : true;
+    this->width_ = bottom[0]->width();
+    this->height_ = bottom[0]->height();
+    this->num_ = bottom[0]->num();
+    this->channels_ = bottom[0]->channels();
 
     CHECK_EQ(4, bottom[0]->num_axes())
             << "Input must have 4 axes, corresponding to (num, channels, height, width)";
@@ -136,21 +140,24 @@ void MKLDNNLRNLayer<Dtype>::InitLRNFwd(const vector<Blob<Dtype>*>& bottom, const
 
     engine cpu_engine = CpuEngine::Instance().get_engine();
     memory::data_type mpcsn = memory::data_type::f32;
-    // ---- Initialize memory descriptors -------------
     memory::dims tz = {n, ic, ih, iw};
-    shared_ptr<memory::desc> top_md;
-    shared_ptr<memory::primitive_desc> usr_mpd, prv_mpd;
+    memory::format mfmt_nchw = memory::format::nchw;
+    memory::format cmfmt = mfmt_nchw;
+
+    // ---- Initialize memory descriptors -------------
+    typedef typename memory::primitive_desc MemPD; // short name for memory::primitive_desc
+
+    // ---- Create usr memory primitive descriptors -------------
+    shared_ptr<MemPD> usr_data_memory_pd(new MemPD({{tz}, mpcsn, mfmt_nchw}, cpu_engine));
+
+    // ---- Create prv memory descriptors -------------------
     if (bottom_data_is_prv) {
         shared_ptr<MKLDNNMemoryDescriptor<Dtype, false> > mem_descr
             = get_mkldnn_prv_descriptor<Dtype, false>(bottom[0]);
-        bottom_md.reset(new memory::desc(mem_descr->prv_memory_pd()->desc()));
-        usr_mpd = mem_descr->usr_memory_pd();
-        prv_mpd = mem_descr->prv_memory_pd();
-    } else {
-        bottom_md.reset(new memory::desc({tz}, mpcsn, memory::format::nchw));
-        usr_mpd.reset(new memory::primitive_desc(*bottom_md, cpu_engine));
+        cmfmt = static_cast<memory::format>(mem_descr->prv_memory_pd()->desc().data.format);
     }
-    top_md = bottom_md;
+
+    bottom_md.reset(new memory::desc({tz}, mpcsn, cmfmt));
 
     // ---- Initialize LRN primitive descriptor -------------
     lrn_forward::desc lrnFwd_desc(propagation, lrn_algorithm, *bottom_md,
@@ -161,6 +168,7 @@ void MKLDNNLRNLayer<Dtype>::InitLRNFwd(const vector<Blob<Dtype>*>& bottom, const
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    lrnFwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         lrnFwd_pd.reset(new lrn_forward::primitive_desc(lrnFwd_desc,
@@ -174,20 +182,15 @@ void MKLDNNLRNLayer<Dtype>::InitLRNFwd(const vector<Blob<Dtype>*>& bottom, const
 
     CHECK(lrnFwd_pd);
     // ---- Create priv memory primitive descriptors stored as class members -------------
-    typedef typename memory::primitive_desc MemPD; // short name for memory::primitive_desc
     shared_ptr<MemPD> prv_fwd_bottom_data_memory_pd(new MemPD(lrnFwd_pd->src_primitive_desc()));
     shared_ptr<MemPD> prv_fwd_top_data_memory_pd(new MemPD(lrnFwd_pd->dst_primitive_desc()));
-
-    // ---- Create usr memory primitive descriptors -------------
-    memory::format mfmt_nchw = memory::format::nchw;
-
-    shared_ptr<MemPD> usr_data_memory_pd(new MemPD({{tz}, mpcsn, mfmt_nchw}, cpu_engine));
+    shared_ptr<MemPD> prv_memory_pd(new MemPD(lrnFwd_pd->dst_primitive_desc()));
 
     // ---  init primitive and prv_memory descriptors ----------------------
     fwd_bottom_data.reset(new MKLDNNData<Dtype>(usr_data_memory_pd, prv_fwd_bottom_data_memory_pd, bottom[0], this));
     fwd_bottom_data->name = "fwd_bottom_data   @ " + this->layer_param_.name();
     fwd_bottom_data_primitive = fwd_bottom_data->create_input(false);
-    fwd_top_data.reset(new MKLDNNData<Dtype>(usr_mpd, prv_fwd_top_data_memory_pd, top[0], this));
+    fwd_top_data.reset(new MKLDNNData<Dtype>(usr_data_memory_pd, prv_fwd_top_data_memory_pd, top[0], this));
     fwd_top_data->name = "fwd_top_data   @ " + this->layer_param_.name();
     fwd_top_data_memory = fwd_top_data->create_output_memory();
 
@@ -213,8 +216,9 @@ void MKLDNNLRNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
                                         ,const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNLRNLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
-    if( lrnFwd_pd == NULL)
+    if( lrnFwd_pd == NULL || this->reshape)
         InitLRNFwd(bottom, top);
+
     // making reorders if needed.
     fwd_bottom_data->sync_before_read();
     // update top that head at prv
@@ -315,6 +319,7 @@ void MKLDNNLRNLayer<Dtype>::InitLRNBwd(const vector<Blob<Dtype>*>& top
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    lrnBwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         lrnBwd_pd.reset(new lrn_backward::primitive_desc(lrnBwd_desc,
@@ -364,7 +369,7 @@ void MKLDNNLRNLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
     if (!propagate_down[0]) {
         return;
     }
-    if( lrnBwd_pd == NULL)
+    if( lrnBwd_pd == NULL || this->reshape)
         InitLRNBwd(top, propagate_down, bottom);
     bwd_top_diff->sync_before_read();
     bwd_bottom_diff->sync_before_write();

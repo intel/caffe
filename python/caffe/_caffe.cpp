@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/python.hpp>
 #include <boost/python/raw_function.hpp>
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+#include <boost/python/suite/indexing/map_indexing_suite.hpp>
 #include <numpy/arrayobject.h>
 
 // these need to be included after boost on OS X
@@ -55,6 +56,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/layers/memory_data_layer.hpp"
 #include "caffe/layers/python_layer.hpp"
 #include "caffe/sgd_solvers.hpp"
+
+#ifdef USE_MLSL
+#include "caffe/multinode/mlsl.hpp"
+#endif
 
 // Temporary solution for numpy < 1.7 versions: old macro, no promises.
 // You're strongly advised to upgrade to >= 1.7.
@@ -87,6 +92,37 @@ const int NPY_DTYPE = NPY_FLOAT32;
 // Selecting mode.
 void set_mode_cpu() { Caffe::set_mode(Caffe::CPU); }
 void set_mode_gpu() { Caffe::set_mode(Caffe::GPU); }
+
+#ifdef USE_MLSL
+void InitMultinode() {
+  int argc = 0;
+  char **argv = NULL;
+  mn::init(&argc, &argv);
+}
+#endif
+
+int NodeId() {
+#if USE_MLSL
+  return mn::get_node_id();
+#else
+  return 0;
+#endif
+}
+
+int NumNodes() {
+#if USE_MLSL
+  return mn::get_nodes_count();
+#else
+  return 1;
+#endif
+}
+
+void Barrier() {
+#if USE_MLSL
+  mn::Distribution * distrib = mn::get_distrib();
+  distrib->barrier<MLSL::GT_DATA>();
+#endif
+}
 
 void InitLog() {
   ::google::InitGoogleLogging("");
@@ -343,6 +379,13 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   bp::scope().attr("__version__") = AS_STRING(CAFFE_VERSION);
 
+#ifdef USE_MLSL
+  InitMultinode();
+#endif
+  bp::def("_node_id", &NodeId);
+  bp::def("_num_nodes", &NumNodes);
+  bp::def("_barrier", &Barrier);
+
   // Caffe utility functions
   bp::def("init_log", &InitLog);
   bp::def("init_log", &InitLogLevel);
@@ -397,7 +440,9 @@ BOOST_PYTHON_MODULE(_caffe) {
         bp::with_custodian_and_ward<1, 2, bp::with_custodian_and_ward<1, 3> >())
     .def("save", &Net_Save)
     .def("save_hdf5", &Net_SaveHDF5)
-    .def("load_hdf5", &Net_LoadHDF5);
+    .def("load_hdf5", &Net_LoadHDF5)
+    .add_property("_blob_names_index", bp::make_function(&Net<Dtype>::blob_names_index,
+        bp::return_value_policy<bp::copy_const_reference>()));
   BP_REGISTER_SHARED_PTR_TO_PYTHON(Net<Dtype>);
 
   bp::class_<Blob<Dtype>, shared_ptr<Blob<Dtype> >, boost::noncopyable>(
@@ -431,6 +476,7 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   bp::class_<LayerParameter>("LayerParameter", bp::no_init);
 
+  void (Solver<Dtype>::*apply_update_function_pointer)(void) = &Solver<Dtype>::ApplyUpdate;
   bp::class_<Solver<Dtype>, shared_ptr<Solver<Dtype> >, boost::noncopyable>(
     "Solver", bp::no_init)
     .add_property("net", &Solver<Dtype>::net)
@@ -442,7 +488,9 @@ BOOST_PYTHON_MODULE(_caffe) {
           &Solver<Dtype>::Solve), SolveOverloads())
     .def("step", &Solver<Dtype>::Step)
     .def("restore", &Solver<Dtype>::Restore)
-    .def("snapshot", &Solver<Dtype>::Snapshot);
+    .def("snapshot", &Solver<Dtype>::Snapshot)
+    .def("apply_update", apply_update_function_pointer)
+    .def("increment_iter", &Solver<Dtype>::increment_iter);
   BP_REGISTER_SHARED_PTR_TO_PYTHON(Solver<Dtype>);
 
   bp::class_<SGDSolver<Dtype>, bp::bases<Solver<Dtype> >,
@@ -466,6 +514,8 @@ BOOST_PYTHON_MODULE(_caffe) {
 
   bp::def("get_solver", &GetSolverFromFile,
       bp::return_value_policy<bp::manage_new_object>());
+  bp::class_<std::map<string, int> >("MapStringInt")
+        .def(bp::map_indexing_suite<std::map<string, int> >() );
 
   // vector wrappers for all the vector types we use
   bp::class_<vector<shared_ptr<Blob<Dtype> > > >("BlobVec")

@@ -123,9 +123,6 @@ void Solver<Dtype>::Init(const SolverParameter& param) {
   iter_ = 0;
   current_step_ = 0;
 
-#ifdef CAFFE_PER_LAYER_TIMINGS
-  InitTimers();
-#endif
 }
 
 template <typename Dtype>
@@ -302,7 +299,7 @@ void Solver<Dtype>::Step(int iters) {
     net_->set_debug_info(display && param_.debug_info());
 
     Timer iter_timer;
-    double iter_time = 0;
+    double iter_time = 0.0;
     iter_timer.Start();
 
     Dtype loss = forward_backward_();
@@ -338,11 +335,6 @@ void Solver<Dtype>::Step(int iters) {
               << result_vec[k] << loss_msg_stream.str();
         }
       }
-
-#ifdef CAFFE_PER_LAYER_TIMINGS
-      PrintTimers(false);
-      ResetTimers();
-#endif
     }
 
     iter_timer.Start();
@@ -354,12 +346,20 @@ void Solver<Dtype>::Step(int iters) {
       PERFORMANCE_MEASUREMENT_BEGIN();
       ApplyUpdate();
       PERFORMANCE_MEASUREMENT_END_STATIC("weights_update");
+    }else{
+       //While using multinodes mode, force to print current lr to logs
+       PrintLearningRate();
     }
-
     iter_time += iter_timer.MilliSeconds();
 
 #ifdef CAFFE_PER_LAYER_TIMINGS
+    net_->SaveTimeline();
+    net_->PrintTimers(false);
+    net_->ResetTimers();
+
+#ifdef USE_MLSL
     if (mn::get_node_id() == 0)
+#endif
         LOG(INFO) << "iter " << iter_ << ", forward_backward_update_time: "
                 << iter_time << " ms";
 #endif
@@ -385,173 +385,11 @@ void Solver<Dtype>::Step(int iters) {
   }
 
 #ifdef CAFFE_PER_LAYER_TIMINGS
-  ResetTimers();
-  PrintTimers(true);
+  net_->ResetTimers();
+  net_->PrintTimers(true);
+  net_->PrintPayloadSize();
 #endif
 }
-
-#ifdef CAFFE_PER_LAYER_TIMINGS
-
-template <typename Dtype>
-void Solver<Dtype>::InitTimers() {
-  int layer_count = net_->layers().size();
-
-  this->forward_time_per_layer.resize(layer_count, 0.0);
-  this->backward_time_per_layer.resize(layer_count, 0.0);
-  this->update_time_per_layer.resize(layer_count, 0.0);
-#ifdef USE_MLSL
-  this->startcomm_time_per_layer.resize(layer_count, 0.0);
-  this->waitcomm_time_per_layer.resize(layer_count, 0.0);
-#endif
-  this->forward_time_per_layer_total.resize(layer_count, 0.0);
-  this->backward_time_per_layer_total.resize(layer_count, 0.0);
-  this->update_time_per_layer_total.resize(layer_count, 0.0);
-#ifdef USE_MLSL
-  this->startcomm_time_per_layer_total.resize(layer_count, 0.0);
-  this->waitcomm_time_per_layer_total.resize(layer_count, 0.0);
-#endif
-}
-
-template <typename Dtype>
-void Solver<Dtype>::ResetTimers() {
-  std::transform(this->forward_time_per_layer_total.begin(),
-                 this->forward_time_per_layer_total.end(),
-                 this->forward_time_per_layer.begin(),
-                 this->forward_time_per_layer_total.begin(),
-                 std::plus<int>());
-
-  std::transform(this->backward_time_per_layer_total.begin(),
-                 this->backward_time_per_layer_total.end(),
-                 this->backward_time_per_layer.begin(),
-                 this->backward_time_per_layer_total.begin(),
-                 std::plus<int>());
-
-  std::transform(this->update_time_per_layer_total.begin(),
-                 this->update_time_per_layer_total.end(),
-                 this->update_time_per_layer.begin(),
-                 this->update_time_per_layer_total.begin(),
-                 std::plus<int>());
-#ifdef USE_MLSL
-  std::transform(this->startcomm_time_per_layer_total.begin(),
-                 this->startcomm_time_per_layer_total.end(),
-                 this->startcomm_time_per_layer.begin(),
-                 this->startcomm_time_per_layer_total.begin(),
-                 std::plus<int>());
-
-  std::transform(this->waitcomm_time_per_layer_total.begin(),
-                 this->waitcomm_time_per_layer_total.end(),
-                 this->waitcomm_time_per_layer.begin(),
-                 this->waitcomm_time_per_layer_total.begin(),
-                 std::plus<int>());
-#endif
-
-  std::fill(this->forward_time_per_layer.begin(),
-          this->forward_time_per_layer.end(), 0);
-  std::fill(this->backward_time_per_layer.begin(),
-          this->backward_time_per_layer.end(), 0);
-  std::fill(this->update_time_per_layer.begin(),
-          this->update_time_per_layer.end(), 0);
-#ifdef USE_MLSL
-  std::fill(this->startcomm_time_per_layer.begin(),
-          this->startcomm_time_per_layer.end(), 0);
-  std::fill(this->waitcomm_time_per_layer.begin(),
-          this->waitcomm_time_per_layer.end(), 0);
-#endif
-}
-
-template <typename Dtype>
-void Solver<Dtype>::PrintTimers(bool printTotal) {
-#ifdef USE_MLSL
-    if (mn::get_node_id() != 0)
-       return;
-#endif
-
-    LOG(WARNING) << std::endl;
-    LOG(WARNING) << "####################################################";
-
-    std::vector<double>& forward_timers = printTotal ?
-        forward_time_per_layer_total : forward_time_per_layer;
-    std::vector<double>& backward_timers = printTotal ?
-        backward_time_per_layer_total : backward_time_per_layer;
-    std::vector<double>& update_timers = printTotal ?
-        update_time_per_layer_total : update_time_per_layer;
-#ifdef USE_MLSL
-    std::vector<double>& startcomm_timers = printTotal ?
-        startcomm_time_per_layer_total : startcomm_time_per_layer;
-    std::vector<double>& waitcomm_timers = printTotal ?
-        waitcomm_time_per_layer_total : waitcomm_time_per_layer;
-    std::string prefix = printTotal ? "TOTAL " : "DELTA ";
-#endif
-
-    double forward_time = std::accumulate(forward_timers.begin(),
-            forward_timers.end(), 0) / 1000;
-    LOG(WARNING) << prefix << "FORWARD TIME: " << forward_time << " ms";
-    for (int layer_idx = 0; layer_idx < net_->layers().size(); layer_idx++) {
-        LOG(WARNING) << "LAYER-" << layer_idx << " "
-                     << net_->layers()[layer_idx]->type()
-                     << ": forward_time: " << forward_timers[layer_idx] / 1000
-                     << " ms";
-    }
-    LOG(WARNING) << std::endl;
-
-    double backward_time = std::accumulate(backward_timers.begin(),
-            backward_timers.end(), 0) / 1000;
-    LOG(WARNING) << prefix << "BACKWARD TIME: " << backward_time << " ms";
-    for (int layer_idx = 0; layer_idx < net_->layers().size(); layer_idx++) {
-        LOG(WARNING) << "LAYER-" << layer_idx << " "
-                     << net_->layers()[layer_idx]->type()
-                     << ": backward_time: " << backward_timers[layer_idx] / 1000
-                     << " ms";
-    }
-    LOG(WARNING) << std::endl;
-
-    double update_time = std::accumulate(update_timers.begin(),
-            update_timers.end(), 0) / 1000;
-    LOG(WARNING) << prefix << "UPDATE TIME: " << update_time << " ms";
-    for (int layer_idx = 0; layer_idx < net_->layers().size(); layer_idx++) {
-        LOG(WARNING) << "LAYER-" << layer_idx << " "
-                     << net_->layers()[layer_idx]->type()
-                     << ": update_time: " << update_timers[layer_idx] / 1000
-                     << " ms";
-    }
-    LOG(WARNING) << std::endl;
-
-#ifdef USE_MLSL
-    double startcomm_time = std::accumulate(startcomm_timers.begin(),
-            startcomm_timers.end(), 0) / 1000;
-    LOG(WARNING) << prefix << "START COMMUNICATION TIME: " << startcomm_time << " ms";
-    for (int layer_idx = 0; layer_idx < net_->layers().size(); layer_idx++) {
-        LOG(WARNING) << "LAYER-" << layer_idx << " "
-                     << net_->layers()[layer_idx]->type()
-                     << ": startcomm_time: " << startcomm_timers[layer_idx] / 1000
-                     << " ms";
-    }
-    LOG(WARNING) << std::endl;
-
-    double waitcomm_time = std::accumulate(waitcomm_timers.begin(),
-            waitcomm_timers.end(), 0) / 1000;
-    LOG(WARNING) << prefix << "WAIT COMMUNICATION TIME: " << waitcomm_time << " ms";
-    for (int layer_idx = 0; layer_idx < net_->layers().size(); layer_idx++) {
-        LOG(WARNING) << "LAYER-" << layer_idx << " "
-                     << net_->layers()[layer_idx]->type()
-                     << ": waitcomm_time: " << waitcomm_timers[layer_idx] / 1000
-                     << " ms";
-    }
-    LOG(WARNING) << std::endl;
-
-    LOG(WARNING) << prefix << "TIME (Computation + Communication): " << (forward_time +
-        backward_time + update_time + startcomm_time + waitcomm_time) / 1000
-        << " sec";
-#else
-    LOG(WARNING) << prefix << "TIME (Computation): " << (forward_time +
-        backward_time + update_time) / 1000 << " sec";
-#endif
-
-    LOG(WARNING) << "####################################################";
-    LOG(WARNING) << std::endl;
-}
-
-#endif /* CAFFE_PER_LAYER_TIMINGS */
 
 template <typename Dtype>
 void Solver<Dtype>::Solve(const char* resume_file) {
@@ -688,7 +526,7 @@ void Solver<Dtype>::TestClassification(const int test_net_id) {
   if (param_.test_compute_loss()) {
 #ifdef USE_MLSL
     mn::allreduce(&loss, 1);
-    loss /= (param_.test_iter(test_net_id) * mn::get_nodes_count());
+    loss /= (param_.test_iter(test_net_id) * mn::get_group_size());
     if (mn::get_node_id() == 0) {
       LOG(INFO) << "Test loss: " << loss;
     }
@@ -705,11 +543,16 @@ void Solver<Dtype>::TestClassification(const int test_net_id) {
     const int output_blob_index =
         test_net->output_blob_indices()[test_score_output_id[i]];
     const string& output_name = test_net->blob_names()[output_blob_index];
-    const Dtype loss_weight = test_net->blob_loss_weights()[output_blob_index];
+    const Dtype loss_weight = test_net->blob_loss_weights()[output_blob_index]
+#ifdef USE_MLSL
+      * mn::get_distrib()->get_data_parts()
+#endif
+      ;
+
     ostringstream loss_msg_stream;
 #ifdef USE_MLSL
     const Dtype mean_score =
-      test_score[i] / (param_.test_iter(test_net_id) * mn::get_nodes_count());
+      test_score[i] / (param_.test_iter(test_net_id) * mn::get_group_size());
 #else /* !USE_MLSL */
     const Dtype mean_score = test_score[i] / param_.test_iter(test_net_id);
 #endif /* USE_MLSL */
@@ -790,9 +633,18 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
     return;
   }
   if (param_.test_compute_loss()) {
-    loss /= param_.test_iter(test_net_id);
-    LOG(INFO) << "Test loss: " << loss;
+#ifdef USE_MLSL
+      mn::allreduce(&loss, 1);
+      loss /= (param_.test_iter(test_net_id) * mn::get_group_size());
+      if (mn::get_node_id() == 0) {
+          LOG(INFO) << "Test loss: " << loss;
+      }
+#else /* !USE_MLSL */
+      loss /= param_.test_iter(test_net_id);
+      LOG(INFO) << "Test loss: " << loss;
+#endif /* USE_MLSL */
   }
+
   for (int i = 0; i < all_true_pos.size(); ++i) {
     if (all_true_pos.find(i) == all_true_pos.end()) {
       LOG(FATAL) << "Missing output_blob true_pos: " << i;
@@ -832,7 +684,17 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
                 param_.ap_version(), &prec, &rec, &(APs[label]));
       mAP += APs[label];
     }
+#ifdef USE_MLSL
+    Dtype allnodes_mAP = static_cast<Dtype>(mAP);
+    mn::allreduce(&allnodes_mAP, 1);
+    mAP = allnodes_mAP;
+    Dtype allnodes_num_pos = static_cast<Dtype>(num_pos.size());
+    mn::allreduce(&allnodes_num_pos, 1);
+    if (mn::get_node_id() == 0)
+        mAP /= allnodes_num_pos;
+#else /* USE_MLSL */
     mAP /= num_pos.size();
+#endif
     const int output_blob_index = test_net->output_blob_indices()[i];
     const string& output_name = test_net->blob_names()[output_blob_index];
     LOG(INFO) << "    Test net output #" << i << ": " << output_name << " = "
@@ -842,6 +704,7 @@ void Solver<Dtype>::TestDetection(const int test_net_id) {
 
 template <typename Dtype>
 void Solver<Dtype>::Snapshot() {
+  LOG(INFO)<<"Snapshot begin";
   CHECK(Caffe::root_solver());
 
 #ifdef USE_MLSL
@@ -868,6 +731,7 @@ void Solver<Dtype>::Snapshot() {
     callbacks_[i]->on_after_snapshot();
   }
 #endif
+  LOG(INFO)<<"Snapshot end";
 }
 
 template <typename Dtype>
@@ -913,7 +777,13 @@ string Solver<Dtype>::SnapshotToBinaryProto() {
 template <typename Dtype>
 string Solver<Dtype>::SnapshotToHDF5() {
   string model_filename = SnapshotFilename(".caffemodel.h5");
+#ifdef USE_MLSL
+  if (mn::is_root()) {
+#endif
   LOG(INFO) << "Snapshotting to HDF5 file " << model_filename;
+#ifdef USE_MLSL
+  }
+#endif
   net_->ToHDF5(model_filename, param_.snapshot_diff());
   return model_filename;
 }

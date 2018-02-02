@@ -59,18 +59,18 @@ void MKLDNNPoolingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom
     PoolingParameter pool_param = this->layer_param_.pooling_param();
 
     if (pool_param.global_pooling()) {
-        CHECK(!(pool_param.has_kernel_size() || pool_param.has_kernel_h() || pool_param.has_kernel_w()))
+        CHECK(!(pool_param.kernel_size_size() || pool_param.has_kernel_h() || pool_param.has_kernel_w()))
             << "With Global_pooling: true Filter size cannot specified";
     } else {
-        CHECK(!pool_param.has_kernel_size() != !(pool_param.has_kernel_h() && pool_param.has_kernel_w()))
+        CHECK(!pool_param.kernel_size_size() != !(pool_param.has_kernel_h() && pool_param.has_kernel_w()))
             << "Filter size is kernel_size OR kernel_h and kernel_w; not both";
-        CHECK(pool_param.has_kernel_size() ||(pool_param.has_kernel_h() && pool_param.has_kernel_w()))
+        CHECK(pool_param.kernel_size_size() ||(pool_param.has_kernel_h() && pool_param.has_kernel_w()))
             << "For non-square filters both kernel_h and kernel_w are required.";
     }
-    CHECK((!pool_param.has_pad() && pool_param.has_pad_h() && pool_param.has_pad_w())
+    CHECK((!pool_param.pad_size() && pool_param.has_pad_h() && pool_param.has_pad_w())
             || (!pool_param.has_pad_h() && !pool_param.has_pad_w()))
         << "pad is pad OR pad_h and pad_w are required.";
-    CHECK((!pool_param.has_stride() && pool_param.has_stride_h() && pool_param.has_stride_w())
+    CHECK((!pool_param.stride_size() && pool_param.has_stride_h() && pool_param.has_stride_w())
             || (!pool_param.has_stride_h() && !pool_param.has_stride_w()))
         << "Stride is stride OR stride_h and stride_w are required.";
 
@@ -79,27 +79,56 @@ void MKLDNNPoolingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom
         kernel_h_ = bottom[0]->height();
         kernel_w_ = bottom[0]->width();
     } else {
-        if (pool_param.has_kernel_size()) {
-            kernel_h_ = kernel_w_ = pool_param.kernel_size();
+        if (pool_param.kernel_size_size()) {
+            CHECK(pool_param.kernel_size_size() == 1 || pool_param.kernel_size_size() == 2)
+              << "kernel_size must be specified once, or 2 values for Height and Width";
+            if (pool_param.kernel_size_size() == 1) {
+                kernel_h_ = kernel_w_ = pool_param.kernel_size(0);
+            } else {
+                kernel_h_ = pool_param.kernel_size(0);
+                kernel_w_ = pool_param.kernel_size(1);
+            }
         } else {
-            kernel_h_ = pool_param.kernel_h();
-            kernel_w_ = pool_param.kernel_w();
+          kernel_h_ = pool_param.kernel_h();
+          kernel_w_ = pool_param.kernel_w();
         }
     }
+
     CHECK_GT(kernel_h_, 0) << "Filter dimensions cannot be zero.";
     CHECK_GT(kernel_w_, 0) << "Filter dimensions cannot be zero.";
+
     if (!pool_param.has_pad_h()) {
-        pad_t_ = pad_b_ = pad_l_ = pad_r_ = pool_param.pad();
+        CHECK(pool_param.pad_size() < 3)
+          << "pad must be specified no more than 3 dimensions";
+        if (pool_param.pad_size() == 0) {
+          pad_t_ = pad_b_ = pad_l_ = pad_r_ = 0;
+        } else if (pool_param.pad_size() == 1) {
+          pad_t_ = pad_b_ = pad_l_ = pad_r_ = pool_param.pad(0);
+        } else {
+          pad_t_ = pad_b_ = pool_param.pad(0);
+          pad_l_ = pad_r_ = pool_param.pad(1);
+        }
     } else {
         pad_t_ = pad_b_ = pool_param.pad_h();
         pad_l_ = pad_r_ = pool_param.pad_w();
     }
+
     if (!pool_param.has_stride_h()) {
-        stride_h_ = stride_w_ = pool_param.stride();
+        CHECK(pool_param.stride_size() < 3)
+          << "stride must be specified no more than 3 dimensions";
+        if (pool_param.stride_size() == 0) {
+          stride_h_ = stride_w_ = 1;
+        } else if (pool_param.stride_size() == 1) {
+          stride_h_ = stride_w_ = pool_param.stride(0);
+        } else {
+          stride_h_ = pool_param.stride(0);
+          stride_w_ = pool_param.stride(1);
+        }
     } else {
         stride_h_ = pool_param.stride_h();
         stride_w_ = pool_param.stride_w();
     }
+
     if (global_pooling_) {
         CHECK(pad_t_ == 0 && pad_l_ == 0 && stride_h_ == 1 && stride_w_ == 1)
             << "With Global_pooling: true; only pad = 0 and stride = 1";
@@ -111,13 +140,19 @@ void MKLDNNPoolingLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom
         CHECK_LT(pad_t_, kernel_h_);
         CHECK_LT(pad_l_, kernel_w_);
     }
+    compute_output_shape(bottom, top);
+}
 
+template <typename Dtype>
+void MKLDNNPoolingLayer<Dtype>::compute_output_shape(const vector<Blob<Dtype>*>& bottom
+                                        ,const vector<Blob<Dtype>*>& top)
+{
     height_out_ = static_cast<int>(ceil(static_cast<float>(
         bottom[0]->height() + pad_t_ + pad_b_ - kernel_h_) / stride_h_)) + 1;
     width_out_ = static_cast<int>(ceil(static_cast<float>(
         bottom[0]->width() + pad_r_ + pad_l_ - kernel_w_) / stride_w_)) + 1;
 
-    if (pad_t_ || pad_b_ || pad_r_ || pad_l_) {
+    if (pad_t_ || pad_b_ || pad_r_ || pad_l_ || kernel_h_ == 1 || kernel_w_ == 1) {
         // If we have padding, ensure that the last pooling starts strictly
         // inside the image (instead of at the padding); otherwise clip the last.
         if ((height_out_ - 1) * stride_h_ >= bottom[0]->height() + pad_t_) {
@@ -149,10 +184,16 @@ void MKLDNNPoolingLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom
 {
     VLOG(1) << "MKLDNNPoolingLayer<Dtype>::Reshape: "  << this->layer_param_.name();
 
-    num_ = bottom[0]->num();
-    channels_ = bottom[0]->channels();
-    height_ = bottom[0]->height();
-    width_ = bottom[0]->width();
+    this->reshape = (this->width_ == bottom[0]->width() &&
+                     this->height_ == bottom[0]->height() &&
+                     this->channels_ == bottom[0]->channels() &&
+                     this->num_ == bottom[0]->num()) ? false : true;
+    this->num_ = bottom[0]->num();
+    this->channels_ = bottom[0]->channels();
+    this->height_ = bottom[0]->height();
+    this->width_ = bottom[0]->width();
+
+    compute_output_shape(bottom, top);
 
     CHECK_EQ(4, bottom[0]->num_axes()) << "Input must have 4 axes, "
         << "corresponding to (num, channels, height, width)";
@@ -235,12 +276,19 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
     shared_ptr<MemPD> usr_bottom_data_mpd(new MemPD({{bottom_tz}, mpcsn, mfmt_nchw}, cpu_engine));
     shared_ptr<MemPD> usr_top_data_mpd(new MemPD({{top_tz}, mpcsn, mfmt_nchw}, cpu_engine));
 
+    std::vector<int> fl;
+    std::vector<float> scale;
+    bool bottom_is_float = false;
     if (bottom_data_is_prv) {
         shared_ptr<MKLDNNMemoryDescriptor<Dtype, false> > mem_descr
             = get_mkldnn_prv_descriptor<Dtype, false>(bottom[0]);
+        bottom_is_float = mem_descr->get_float();
         cmfmt = static_cast<memory::format>(mem_descr->prv_memory_pd()->desc().data.format);
         mpcsn = static_cast<memory::data_type>(mem_descr->prv_memory_pd()->desc().data.data_type);
+        fl.push_back(mem_descr->get_fl(0));
+        scale.push_back(mem_descr->get_scale(0));
     }
+
     shared_ptr<memory::desc> init_fwd_bottom_md(new memory::desc({bottom_tz}, mpcsn, cmfmt));
     shared_ptr<memory::desc> init_fwd_top_md(new memory::desc({top_tz}, mpcsn, cmfmt));
 
@@ -253,6 +301,7 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    poolingFwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         poolingFwd_pd.reset(new pooling_forward::primitive_desc(poolingFwd_desc,
@@ -273,9 +322,12 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
     if (bottom_data_is_prv) {
         prv_fwd_bottom_data_mpd.reset(new MemPD(*init_fwd_bottom_md, engine));
         prv_fwd_top_data_mpd.reset(new MemPD(*init_fwd_top_md, engine));
+        // ---- Log prv memory primitive descriptors -------------
+        info_mem_pd<Dtype>(prv_fwd_bottom_data_mpd, "pooling_src:" + this->layer_param_.name());
+        info_mem_pd<Dtype>(prv_fwd_top_data_mpd, "pooling_dst:" + this->layer_param_.name());
     }
 
-    // ---- Create prv memory  ---------------------
+    // ---- Create priv memory  ---------------------
 
     // We'll output the mask to top[1] if it's of size >1.
     uint32_t* mask = NULL;  // suppress warnings about uninitalized variables
@@ -285,10 +337,18 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingFwd(const vector<Blob<Dtype>*>& botto
             : max_idx_.mutable_cpu_data();
 
     // ---  init primitive and prv_memory descriptors ----------------------
-    fwd_bottom_data.reset(new MKLDNNData<Dtype>(usr_bottom_data_mpd, prv_fwd_bottom_data_mpd, bottom[0], this));
+    if(bottom_is_float){
+        fwd_bottom_data.reset(new MKLDNNData<Dtype>(usr_bottom_data_mpd, prv_fwd_bottom_data_mpd, bottom[0], this, true, scale));
+    } else {
+        fwd_bottom_data.reset(new MKLDNNData<Dtype>(usr_bottom_data_mpd, prv_fwd_bottom_data_mpd, bottom[0], this, fl));
+    }
     fwd_bottom_data_primitive = fwd_bottom_data->create_input(false);
 
-    fwd_top_data.reset(new MKLDNNData<Dtype>(usr_top_data_mpd, prv_fwd_top_data_mpd, top[0], this));
+    if(bottom_is_float){
+        fwd_top_data.reset(new MKLDNNData<Dtype>(usr_top_data_mpd, prv_fwd_top_data_mpd, top[0], this, true, scale));
+    } else{
+        fwd_top_data.reset(new MKLDNNData<Dtype>(usr_top_data_mpd, prv_fwd_top_data_mpd, top[0], this, fl));
+    }
     fwd_top_data_memory = fwd_top_data->create_output_memory();
 
     if (propagation == prop_kind::forward_training &&
@@ -320,7 +380,7 @@ void MKLDNNPoolingLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     LOG(INFO) << "MKLDNNPoolingLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
 #endif
 
-    if (NULL == poolingFwd_pd)
+    if (NULL == poolingFwd_pd || this->reshape)
         InitPoolingFwd(bottom, top);
     // making reorders if needed.
     fwd_bottom_data->sync_before_read();
@@ -423,6 +483,7 @@ void MKLDNNPoolingLayer<Dtype>::InitPoolingBwd(const vector<Blob<Dtype>*>& top
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    poolingBwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         poolingBwd_pd.reset(new pooling_backward::primitive_desc(poolingBwd_desc,
@@ -483,7 +544,7 @@ void MKLDNNPoolingLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top
     if (!propagate_down[0]) {
         return;
     }
-    if (NULL == poolingBwd_pd)
+    if (NULL == poolingBwd_pd || this->reshape)
         InitPoolingBwd(top, propagate_down, bottom);
 
     bwd_top_diff->sync_before_read();

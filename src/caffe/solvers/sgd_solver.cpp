@@ -45,6 +45,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 namespace caffe {
+
+#ifdef CAFFE_PER_LAYER_TIMINGS
+
+#define LAYER_UPDATE_TIMING_START(index) do { \
+  if (this->net()->phase() == TRAIN) { \
+    this->net()->update_start_time_per_layer[index] = this->net()->timer.Duration(); \
+  } \
+}while(0)
+
+#define LAYER_UPDATE_TIMING_STOP(index) do { \
+  if (this->net()->phase() == TRAIN) { \
+    this->net()->update_stop_time_per_layer[index] = this->net()->timer.Duration(); \
+    this->net()->update_time_per_layer[index] += (this->net()->update_stop_time_per_layer[index] - this->net()->update_start_time_per_layer[index]); \
+  } \
+}while(0)
+
+#else
+
+#define LAYER_UPDATE_TIMING_START(index)
+#define LAYER_UPDATE_TIMING_STOP(index)
+
+#endif
+
+
+
 template <typename Dtype>
 Dtype SGDSolver<Dtype>::GetWarmUpLR(int cur_iter, int warmup_iter, Dtype warmup_start_lr) {
   if (cur_iter < 0) {
@@ -183,17 +208,36 @@ void SGDSolver<Dtype>::ClipGradients() {
 }
 
 template <typename Dtype>
-void SGDSolver<Dtype>::ApplyUpdate() {
+void SGDSolver<Dtype>::PrintLearningRate() {
   CHECK(Caffe::root_solver());
   Dtype rate = GetLearningRate();
   if (this->param_.display() && this->iter_ % this->param_.display() == 0) {
     LOG(INFO) << "Iteration " << this->iter_ << ", lr = " << rate;
   }
+}
+
+template <typename Dtype>
+void SGDSolver<Dtype>::ApplyUpdate() {
+  PrintLearningRate();
   ClipGradients();
+#ifdef CAFFE_PER_LAYER_TIMINGS
+#ifdef USE_MLSL
+  CHECK(mn::is_multinode() == false);
+#endif
+  for (int i=0; i<this->net_->layers().size(); i++) {
+    const std::vector<int> param_ids = this->net_->get_layer_learnable_param_ids(i);
+    LAYER_UPDATE_TIMING_START(i);
+    for (int param_id = 0; param_id < param_ids.size(); ++param_id) {
+      ApplyUpdate(param_ids[param_id]);
+    }
+    LAYER_UPDATE_TIMING_STOP(i);
+  }
+#else
   for (int param_id = 0; param_id < this->net_->learnable_params().size();
        ++param_id) {
     ApplyUpdate(param_id);
   }
+#endif
 }
 
 template <typename Dtype>
@@ -210,7 +254,7 @@ void SGDSolver<Dtype>::ApplyUpdate(int param_id) {
   }
 
 #ifdef ENABLE_SGD_FUSION
-  if (Caffe::mode() == Caffe::CPU) 
+  if ((Caffe::mode() == Caffe::CPU) && (this->type() == string("SGD")))
   {
     //VLOG(1) << "Use Normalize_Regularize_ComputeUpdateValue_Update_Fusion for SGD";
     //LOG(INFO) << "Use Normalize_Regularize_ComputeUpdateValue_Update_Fusion for SGD";
@@ -251,16 +295,14 @@ template <>
 void axpy_axpby_copy<float>(size_t count, const float decay, const float* net_params_data, float *net_params_diff,
                             const float rate, const float momentum, float* history_data)
 {
-  float temp_result = 0.;
 #ifdef _OPENMP
 //#pragma omp parallel for simd schedule(static)  //Not work for GCC 4.8
 #pragma omp parallel for schedule(static)
 #pragma simd
 #endif  
   for (size_t i = 0; i < count; ++i) {
-    temp_result = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
-    history_data[i] = temp_result;
-    net_params_diff[i] = temp_result;
+    history_data[i] = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
+    net_params_diff[i] = history_data[i];
   }
 }
 
@@ -268,16 +310,14 @@ template <>
 void axpy_axpby_copy<double>(size_t count, const double decay, const double* net_params_data, double *net_params_diff,
                              const double rate, const double momentum, double* history_data)
 {
-  double temp_result = 0.;
 #ifdef _OPENMP
 //#pragma omp parallel for simd schedule(static)  //Not work for GCC 4.8
 #pragma omp parallel for schedule(static)
 #pragma simd
 #endif  
   for (size_t i = 0; i < count; ++i) {
-    temp_result = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
-    history_data[i] = temp_result;
-    net_params_diff[i] = temp_result;
+    history_data[i] = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
+    net_params_diff[i] = history_data[i];
   }
 }
 //End: For L1 Regularize_ComputeUpdateValue_Fusion
@@ -292,17 +332,14 @@ template <>
 void axpy_axpby_copy_axpy<float>(size_t count, const float decay, float* net_params_data, float *net_params_diff,
                             const float rate, const float momentum, float* history_data, const float update_param)
 {
-  float temp_result = 0.;
 #ifdef _OPENMP
 //#pragma omp parallel for simd schedule(static)  //Not work for GCC 4.8
 #pragma omp parallel for schedule(static)
 #pragma simd
 #endif  
   for (size_t i = 0; i < count; ++i) {
-    temp_result = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
-    history_data[i] =  temp_result;
-    net_params_diff[i] = temp_result;
-    net_params_data[i] = update_param * temp_result + net_params_data[i];
+    history_data[i] = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
+    net_params_data[i] = update_param * history_data[i] + net_params_data[i];
   }
 }
 
@@ -310,16 +347,14 @@ template <>
 void axpy_axpby_copy_axpy<double>(size_t count, const double decay, double* net_params_data, double *net_params_diff,
                              const double rate, const double momentum, double* history_data, const double update_param)
 {
-  double temp_result = 0.;
 #ifdef _OPENMP
 //#pragma omp parallel for simd schedule(static)  //Not work for GCC 4.8
 #pragma omp parallel for schedule(static)
 #pragma simd
 #endif  
   for (size_t i = 0; i < count; ++i) {
-    temp_result = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
-    net_params_diff[i] = temp_result;
-    net_params_data[i] = update_param * temp_result + net_params_data[i];
+    history_data[i] = rate * (decay * net_params_data[i] + net_params_diff[i]) + momentum * history_data[i];
+    net_params_data[i] = update_param * history_data[i] + net_params_data[i];
   }
 }
 //End: For L2 Regularize_ComputeUpdateValue_Update_Fusion
@@ -345,9 +380,8 @@ void SGDSolver<Dtype>::SGDFusion(int param_id, Dtype rate) {
   Dtype local_decay = weight_decay * net_params_weight_decay[param_id];
 
   //ComputeUpdateValue  initialization
-  const vector<float>& net_params_lr = this->net_->params_lr();
   Dtype momentum = this->param_.momentum();
-  Dtype local_rate = rate * net_params_lr[param_id];
+  Dtype local_rate = rate * GetLocalRate(param_id);
 //#pragma endregion
 
 //#pragma region 2. Common condition judgement
@@ -389,7 +423,7 @@ void SGDSolver<Dtype>::SGDFusion(int param_id, Dtype rate) {
   if (local_decay) {
     if (regularization_type == "L2") {
       // add weight decay
-      if (net_params[param_id]->prv_data()
+      if (net_params[param_id]->prv_data() && net_params[param_id]->prv_diff()
         && (net_params[param_id]->prv_data_count()
         == net_params[param_id]->count())) {
           CHECK_EQ(true,
@@ -472,7 +506,6 @@ void SGDSolver<Dtype>::Normalize(int param_id) {
   //LOG(INFO) << "Normalize stage: Normalize stage is not skipped.";
   // Scale gradient to counterbalance accumulation.
   const vector<Blob<Dtype>*>& net_params = this->net_->learnable_params();
-  
   const Dtype accum_normalization = Dtype(1.) / this->param_.iter_size();
 
   switch (Caffe::mode()) {
@@ -518,7 +551,7 @@ void SGDSolver<Dtype>::Regularize(int param_id) {
     if (local_decay) {
       if (regularization_type == "L2") {
         // add weight decay
-        if (net_params[param_id]->prv_data()
+        if (net_params[param_id]->prv_data() && net_params[param_id]->prv_diff()
              && (net_params[param_id]->prv_data_count()
                  == net_params[param_id]->count())) {
           CHECK_EQ(true,
@@ -589,9 +622,8 @@ void sgd_update_gpu(int N, Dtype* g, Dtype* h, Dtype momentum,
 template <typename Dtype>
 void SGDSolver<Dtype>::ComputeUpdateValue(int param_id, Dtype rate) {
   const vector<Blob<Dtype>*>& net_params = this->net_->learnable_params();
-  const vector<float>& net_params_lr = this->net_->params_lr();
   Dtype momentum = this->param_.momentum();
-  Dtype local_rate = rate * net_params_lr[param_id];
+  Dtype local_rate = rate * GetLocalRate(param_id);
 
   if (this->param_.warmup_iter() > 0 &&
       this->iter_ < this->param_.warmup_iter()) {
@@ -646,6 +678,46 @@ void SGDSolver<Dtype>::ComputeUpdateValue(int param_id, Dtype rate) {
   }
 }
 
+//
+// LARS (Layer-wise Adaptive Rate Scaling) is implemented by Yang You, Ignor Gitman and Boris Ginsburg in UC Berkeley.
+// please refer to the papers below:
+//     Scaling SGD Batch Size to 32K for ImageNet Training (https://www2.eecs.berkeley.edu/Pubs/TechRpts/2017/EECS-2017-149.html).
+//     Large Batch Training of Convolutional Networks (https://arxiv.org/abs/1708.03888).
+template <typename Dtype>
+Dtype SGDSolver<Dtype>::GetLocalRate(int param_id) const {
+  const vector<float>& net_params_lr = this->net_->params_lr();
+  float local_lr = net_params_lr[param_id];
+
+  if (this->param_.local_lr_auto()) {
+    Blob<Dtype>* param = this->net_->learnable_params()[param_id];
+    const float w_norm = std::sqrt(param->sumsq_data());
+    const float wgrad_norm = std::sqrt(param->sumsq_diff());
+    const float gw_ratio = this->param_.local_gw_ratio();
+    float rate = 1.F;
+
+    float weight_decay = this->param_.weight_decay();
+    if (w_norm > 0.F && wgrad_norm > 0.F) {
+      rate = gw_ratio * w_norm / (wgrad_norm + weight_decay * w_norm);
+    }
+    if (local_lr > 0.F) {
+      local_lr = rate;
+    }
+
+#ifdef DEBUG
+    if (Caffe::root_solver()
+        && this->param_.display()
+        && (this->iter_ % this->param_.display() == 0)) {
+      const int layer_id = this->net_->param_layer_indices(param_id).first;
+      const string& layer_name = this->net_->layer_names()[layer_id];
+      const int blob_id = this->net_->param_layer_indices(param_id).second;
+      LOG(INFO) << layer_name << "." << blob_id << " lr=" << local_lr
+        << ".\t  w=" << w_norm << "\t  dw=" << wgrad_norm;
+    }
+#endif
+  }
+  return local_lr;
+}
+
 template <typename Dtype>
 void SGDSolver<Dtype>::SnapshotSolverState(const string& model_filename) {
   switch (this->param_.snapshot_format()) {
@@ -663,6 +735,9 @@ void SGDSolver<Dtype>::SnapshotSolverState(const string& model_filename) {
 template <typename Dtype>
 void SGDSolver<Dtype>::SnapshotSolverStateToBinaryProto(
     const string& model_filename) {
+#ifdef USE_MLSL
+  if (mn::is_root()) {
+#endif
   SolverState state;
   state.set_iter(this->iter_);
   state.set_learned_net(model_filename);
@@ -676,9 +751,6 @@ void SGDSolver<Dtype>::SnapshotSolverStateToBinaryProto(
     history_[i]->ToProto(history_blob);
   }
   string snapshot_filename = Solver<Dtype>::SnapshotFilename(".solverstate");
-#ifdef USE_MLSL
-  if (mn::is_root()) {
-#endif
   LOG(INFO)
     << "Snapshotting solver state to binary proto file " << snapshot_filename;
   WriteProtoToBinaryFile(state, snapshot_filename.c_str());
@@ -690,6 +762,9 @@ void SGDSolver<Dtype>::SnapshotSolverStateToBinaryProto(
 template <typename Dtype>
 void SGDSolver<Dtype>::SnapshotSolverStateToHDF5(
     const string& model_filename) {
+#ifdef USE_MLSL
+  if (mn::is_root()) {
+#endif
   string snapshot_filename =
       Solver<Dtype>::SnapshotFilename(".solverstate.h5");
   LOG(INFO) << "Snapshotting solver state to HDF5 file " << snapshot_filename;
@@ -713,6 +788,9 @@ void SGDSolver<Dtype>::SnapshotSolverStateToHDF5(
   }
   H5Gclose(history_hid);
   H5Fclose(file_hid);
+#ifdef USE_MLSL
+  }
+#endif
 }
 
 template <typename Dtype>

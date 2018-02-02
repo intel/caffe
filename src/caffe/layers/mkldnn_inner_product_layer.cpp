@@ -56,7 +56,7 @@ namespace caffe {
 template <typename Dtype>
 MKLDNNInnerProductLayer<Dtype>::MKLDNNInnerProductLayer(
             const LayerParameter& param) :
-            MKLDNNLayer<Dtype>(),
+            MKLDNNLayer<Dtype>(param),
             InnerProductLayer<Dtype>(param),
             fwd_bottom_data(NULL),
             fwd_top_data(NULL),
@@ -84,11 +84,17 @@ MKLDNNInnerProductLayer<Dtype>::MKLDNNInnerProductLayer(
             bwdw_top_diff_primitive(NULL),
             bwdw_bottom_data_primitive(NULL),
             w_(0),
-            h_(0)
+            h_(0),
+            bwdw_weights_diff_iter(NULL),
+            bwdw_bias_diff_iter(NULL),
+            bwdw_weights_diff_memory_iter(NULL),
+            bwdw_bias_diff_memory_iter(NULL)
 {
   PERFORMANCE_EVENT_ID_RESET(perf_id_fw_);
   PERFORMANCE_EVENT_ID_RESET(perf_id_bw_);
   PERFORMANCE_EVENT_ID_RESET(perf_id_bw_weights_);
+  this->M_ = 0;
+  this->K_ = 0;
 }
 
 template <typename Dtype>
@@ -102,6 +108,15 @@ void MKLDNNInnerProductLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bott
 {
     VLOG(1) << "MKLDNNInnerProductLayer<Dtype>::LayerSetUp: " << this->layer_param_.name();
     InnerProductLayer<Dtype>::LayerSetUp(bottom, top);
+
+    // support for (iter_size > 1) requires additional buffer for weights diff and bias diff
+    // Because Net is initialized before Caffe::set_iter_size, so additional buffer should be new and set here
+    bwdw_weights_diff_iter_blob.reset(new Blob<Dtype>());
+    bwdw_weights_diff_iter_blob->ReshapeLike(*(this->blobs_[0]));
+    if (this->bias_term_) {
+      bwdw_bias_diff_iter_blob.reset(new Blob<Dtype>());
+      bwdw_bias_diff_iter_blob->ReshapeLike(*(this->blobs_[1]));
+    }
 }
 
 template <typename Dtype>
@@ -109,6 +124,17 @@ void MKLDNNInnerProductLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom
                                             , const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNInnerProductLayer<Dtype>::Reshape: " << this->layer_param_.name();
+    const int axis = bottom[0]->CanonicalAxisIndex(
+        this->layer_param_.inner_product_param().axis());
+    if (this->M_ != bottom[0]->count(0, axis) ||
+        this->K_ != bottom[0]->count(axis) ||
+        this->w_ != bottom[0]->width() ||
+        this->h_ != bottom[0]->height()) {
+      this->reshape = true;
+    } else {
+      this->reshape = false;
+    }
+
     InnerProductLayer<Dtype>::Reshape(bottom, top);
 
     this->w_ = bottom[0]->width();
@@ -139,7 +165,6 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductFwd(const vector<Blob<Dtype
     memory::dims bias_tz = {oc};
 
 #ifdef DEBUG
-    LOG(INFO) << "has_spatial flag value: " << has_spatial;
     if (has_spatial)
     {
         LOG(INFO) << "Dimension of bottom for MKLDNN: " << n << " " << ic << " " << h << " " << w;
@@ -174,6 +199,7 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductFwd(const vector<Blob<Dtype
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    ipFwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         ipFwd_pd.reset(new inner_product_forward::primitive_desc(*ipFwd_desc,
@@ -264,12 +290,12 @@ void MKLDNNInnerProductLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bot
     LOG(INFO) << "MKLDNNInnerProductLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
 #endif
 
-    if( ipFwd_pd == NULL)
+    if( ipFwd_pd == NULL || this->reshape)
         InitInnerProductFwd(bottom, top);
     // making reorders if needed.
     fwd_bottom_data->sync_before_read();
     fwd_weights_data->sync_before_read();
-    if (this->bias_term_) 
+    if (this->bias_term_)
       fwd_bias_data->sync_before_read();
     // update top that head at prv
     fwd_top_data->sync_before_write();
@@ -331,7 +357,7 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductBwd(const vector<Blob<Dtype
  else
     ipBwdWeights_desc.reset(new inner_product_backward_weights::desc(init_bottom_md, init_weights_md
                         , init_top_md));
-    
+
     ipBwdData_desc.reset(new inner_product_backward_data::desc(init_bottom_md, init_weights_md, init_top_md));
 
     // ---- Determining engine to use -----------------------
@@ -340,6 +366,8 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductBwd(const vector<Blob<Dtype
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    ipBwdData_pd = NULL;
+    ipBwdWeights_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         ipBwdData_pd.reset(new inner_product_backward_data::primitive_desc(*ipBwdData_desc,
@@ -403,19 +431,43 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductBwd(const vector<Blob<Dtype
     bwdw_weights_diff->name = "bwdw_weights_diff  @ " + this->layer_param_.name();
     bwdw_weights_diff_memory = bwdw_weights_diff->create_output_memory();
 
+    if (Caffe::iter_size() > 1) {
+      // support for (iter_size > 1) weights diff requires additional buffer
+      shared_ptr<MemPD> prv_bwdw_weights_diff_memory_iter_pd(new MemPD(ipBwdWeights_pd->diff_weights_primitive_desc()));
+      bwdw_weights_diff_iter.reset(new MKLDNNDiff<Dtype>(usr_weights_data_memory_pd, prv_bwdw_weights_diff_memory_iter_pd, bwdw_weights_diff_iter_blob.get(), this));
+      bwdw_weights_diff_memory_iter = bwdw_weights_diff_iter->create_output_memory();
+    }
+
     if (this->bias_term_) {
         shared_ptr<MemPD> prv_bwdw_bias_diff_memory_pd(new MemPD(ipBwdWeights_pd->diff_bias_primitive_desc()));
         bwdw_bias_diff.reset(new MKLDNNDiff<Dtype>(usr_bias_data_memory_pd, prv_bwdw_bias_diff_memory_pd, this->blobs_[1].get(), this));
         bwdw_bias_diff   ->name = "bwdw_bias_diff     @ " + this->layer_param_.name();
         bwdw_bias_diff_memory = bwdw_bias_diff->create_output_memory();
 
-        ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
+        if (Caffe::iter_size() > 1) {
+          // support for (iter_size > 1) bias diff requires additional buffer
+          shared_ptr<MemPD> prv_bwdw_bias_diff_memory_iter_pd(new MemPD(ipBwdWeights_pd->diff_bias_primitive_desc()));
+          bwdw_bias_diff_iter.reset(new MKLDNNDiff<Dtype>(usr_bias_data_memory_pd, prv_bwdw_bias_diff_memory_iter_pd, bwdw_bias_diff_iter_blob.get(), this));
+          bwdw_bias_diff_memory_iter = bwdw_bias_diff_iter->create_output_memory();
+          ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
                         , *bwdw_bottom_data_primitive, *bwdw_top_diff_primitive
+                        , *bwdw_weights_diff_memory_iter, *bwdw_bias_diff_memory_iter));
+        } else {
+          ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
+                        , *bwdw_bottom_data_primitive, *bwdw_top_diff_primitive   
                         , *bwdw_weights_diff_memory, *bwdw_bias_diff_memory));
+        }
     } else {
-        ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
+        if (Caffe::iter_size() > 1) {
+          // if (iter_size > 1) then weights diff should be accumulated across iterations
+          ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
+                        , *bwdw_bottom_data_primitive, *bwdw_top_diff_primitive
+                        , *bwdw_weights_diff_memory_iter));
+        } else {
+          ipBwdWeights.reset(new inner_product_backward_weights(*ipBwdWeights_pd
                         , *bwdw_bottom_data_primitive, *bwdw_top_diff_primitive
                         , *bwdw_weights_diff_memory));
+        }
     }
 
     ipBwdData.reset(new inner_product_backward_data(*ipBwdData_pd
@@ -447,11 +499,23 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductBwd(const vector<Blob<Dtype
     MKLDNNPrimitive<Dtype> bwdw_weights_diff_memory_transfer(bwdw_weights_diff_memory);
     bwdw_weights_diff->set_mkldnn_primitive(bwdw_weights_diff_memory_transfer);
 
+    if (Caffe::iter_size() > 1) {
+      // support for (iter_size > 1) weights diff requires additional buffer
+      MKLDNNPrimitive<Dtype> bwdw_weights_diff_memory_iter_transfer(bwdw_weights_diff_memory_iter);      
+      bwdw_weights_diff_iter->set_mkldnn_primitive(bwdw_weights_diff_memory_iter_transfer);
+    }
+
     if (this->bias_term_)
     {
         //bwdw_bias_diff->set_mkldnn_primitive(ipBwdWeights);   //Wrong passed primitive! (TODO: Checking!)
         MKLDNNPrimitive<Dtype> bwdw_bias_diff_memory_transfer(bwdw_bias_diff_memory);
         bwdw_bias_diff->set_mkldnn_primitive(bwdw_bias_diff_memory_transfer);
+
+        if (Caffe::iter_size() > 1) {
+          // support for (iter_size > 1) bias diff requires additional buffer
+          MKLDNNPrimitive<Dtype> bwdw_bias_diff_memory_iter_transfer(bwdw_bias_diff_memory_iter);
+          bwdw_bias_diff_iter->set_mkldnn_primitive(bwdw_bias_diff_memory_iter_transfer);
+        }
     }
 }
 
@@ -466,8 +530,9 @@ void MKLDNNInnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
 #ifdef DEBUG
     LOG(INFO) << "MKLDNNInnerProductLayer<Dtype>::Backward_cpu: " << this->layer_param_.name();
 #endif
+    bool top_diff_is_prv = (const_cast<Dtype*>(top[0]->prv_diff()) != NULL);
 
-    if( ipBwdData_pd == NULL)
+    if( ipBwdData_pd == NULL || this->reshape)
         InitInnerProductBwd(top, propagate_down, bottom);
     if (propagate_down[0]) {
         // making reorders if needed.
@@ -526,6 +591,13 @@ void MKLDNNInnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
         PERFORMANCE_MEASUREMENT_END_ID(perf_id_bw_);
     }
     if (this->param_propagate_down(0)) {
+        // We have to sync top diff to cpu explicitly. This is used to make
+        // bwdw_top_diff->sync_before_read() have chance to get coverted data as
+        // bwdd_top_diff->sync_before_read() have updated top diff's prv_data
+        // to self. This issue only happens when MKLDNN innerproduct layer is
+        // followed by a CAFFE layer and conversion is needed.
+        if (!top_diff_is_prv && propagate_down[0])
+          top[0]->mutable_cpu_diff();
         // making reorders if needed.
         bwdw_top_diff->sync_before_read();
         bwdw_bottom_data->sync_before_read();
@@ -540,6 +612,34 @@ void MKLDNNInnerProductLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& to
         PERFORMANCE_MEASUREMENT_BEGIN();
         ipBwdWeights.submit();
         PERFORMANCE_MEASUREMENT_END_ID(perf_id_bw_weights_);
+
+        if (Caffe::iter_size() > 1) {
+          // if (iter_size > 1) then weights diff should be accumulated across iterations
+          if (this->blobs_[0]->prv_diff() != NULL) {
+            caffe_axpy(this->blobs_[0]->prv_diff_count(), Dtype(1),              
+              (Dtype*)(bwdw_weights_diff_memory_iter->get_data_handle()),
+              this->blobs_[0]->mutable_prv_diff());
+          } else {
+            caffe_axpy(this->blobs_[0]->count(), Dtype(1),              
+              (Dtype*)(bwdw_weights_diff_memory_iter->get_data_handle()),
+              this->blobs_[0]->mutable_cpu_diff());
+          }
+        }
+
+        if (this->param_propagate_down(1)) {
+          if (Caffe::iter_size() > 1) {
+            // if (iter_size > 1) then bias diff should be accumulated across iterations
+            if (this->blobs_[1]->prv_diff() != NULL) {
+              caffe_axpy(this->blobs_[1]->prv_diff_count(), Dtype(1),
+                (Dtype*)(bwdw_bias_diff_memory_iter->get_data_handle()),
+                this->blobs_[1]->mutable_prv_diff());
+            } else {
+              caffe_axpy(this->blobs_[1]->count(), Dtype(1),
+                (Dtype*)(bwdw_bias_diff_memory_iter->get_data_handle()),
+                this->blobs_[1]->mutable_cpu_diff());
+            }
+          }
+        }
     }
 }
 

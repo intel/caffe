@@ -78,6 +78,10 @@ template <typename Dtype>
 void MKLDNNEltwiseLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNEltwiseLayer<Dtype>::Reshape: " << this->layer_param_.name();
+    this->reshape = (this->width_ == bottom[0]->width() &&
+                     this->height_ == bottom[0]->height() &&
+                     this->channels_ == bottom[0]->channels() &&
+                     this->num_ == bottom[0]->num()) ? false : true;
 
     this->width_ = bottom[0]->width();
     this->height_ = bottom[0]->height();
@@ -143,9 +147,10 @@ void MKLDNNEltwiseLayer<Dtype>::InitEltwiseFwd(const vector<Blob<Dtype>*>& botto
     memory::format mfmt_nchw = memory::format::nchw;
 
     // ---- Initialize memory descriptors -------------
-    shared_ptr<memory::desc> bottom_data_md, top_data_md;
-
     std::vector<memory::primitive_desc> bottom_data_mpd;
+    fwd_bottom_data.clear();
+    fwd_bottom_data_primitives_.clear();
+    fwd_bottom_data_primitives_at_.clear();
     for (auto i = 0; i < num_bottoms_; i++) 
     {
         fwd_bottom_data.push_back(boost::shared_ptr<MKLDNNData<Dtype> >());
@@ -161,15 +166,9 @@ void MKLDNNEltwiseLayer<Dtype>::InitEltwiseFwd(const vector<Blob<Dtype>*>& botto
                 = get_mkldnn_prv_descriptor<Dtype, false>(bottom[i]);
             bottom_data_mfmt = static_cast<memory::format>(
                 mem_descr->prv_memory_pd()->desc().data.format);
-            bottom_data_md.reset(new memory::desc(mem_descr->prv_memory_pd()->desc()));
             prv_bottom_data_mpd.reset(new memory::primitive_desc(
                 {{n, ic, ih, iw}, mpcsn, bottom_data_mfmt}, cpu_engine));
         }
-        else
-        {
-            bottom_data_md.reset(new memory::desc({{n, ic, ih, iw}}, mpcsn, bottom_data_mfmt));
-        }
-        top_data_md = bottom_data_md;
 
         bottom_data_mpd.push_back(memory::primitive_desc(
             {{n, ic, ih, iw}, mpcsn, bottom_data_mfmt}, cpu_engine));
@@ -215,8 +214,8 @@ template <typename Dtype>
 void MKLDNNEltwiseLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNEltwiseLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
-    
-    if(eltwiseFwd_pd == NULL)
+
+    if(eltwiseFwd_pd == NULL || this->reshape)
         InitEltwiseFwd(bottom, top);
     for (auto i = 0; i < num_bottoms_; i++)
     {

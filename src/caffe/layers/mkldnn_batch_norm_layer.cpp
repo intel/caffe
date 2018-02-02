@@ -161,6 +161,11 @@ void MKLDNNBatchNormLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom
 {
     VLOG(1) << "MKLDNNBatchNormLayer<Dtype>::Reshape: " << this->layer_param_.name();
 
+    this->reshape = (this->width_ == bottom[0]->width() &&
+                     this->height_ == bottom[0]->height() &&
+                     this->channels_ == bottom[0]->channels() &&
+                     this->num_ == bottom[0]->num()) ? false : true;
+
     this->width_ = bottom[0]->width();
     this->height_ = bottom[0]->height();
     this->num_ = bottom[0]->num();
@@ -174,6 +179,9 @@ void MKLDNNBatchNormLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom
     LOG(INFO) << "size of bottom blob: " << bottom[0]->shape().size();
 #endif
     top[0]->ReshapeLike(*bottom[0]);
+
+    if(bottom[0] == top[0] && this->phase_ == TRAIN)
+        inplace_buffer.ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
@@ -193,6 +201,7 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNorm(const vector<Blob<Dtype>*>& bott
 
     bool bottom_data_is_prv = (const_cast<Dtype*>(bottom[0]->prv_data()) != NULL);
 
+    bool inplace = (bottom[0] == top[0]);
     engine cpu_engine = CpuEngine::Instance().get_engine();
     memory::data_type mpcsn = memory::data_type::f32;
     
@@ -224,6 +233,7 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNorm(const vector<Blob<Dtype>*>& bott
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    BatchNormFwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         BatchNormFwd_pd.reset(new batch_normalization_forward::primitive_desc(BatchNormFwd_desc,
@@ -246,7 +256,11 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNorm(const vector<Blob<Dtype>*>& bott
     fwd_bottom_data.reset(new MKLDNNData<Dtype>(usr_mpd, prv_mpd, bottom[0], this));
     input_primitive = fwd_bottom_data->create_input(false);
 
-    fwd_top_data.reset(new MKLDNNData<Dtype>(usr_mpd, prv_mpd, top[0], this));
+    if(inplace && this->phase_ == TRAIN) {
+        fwd_top_data.reset(new MKLDNNData<Dtype>(usr_mpd, prv_mpd, &inplace_buffer, this));
+    } else {
+        fwd_top_data.reset(new MKLDNNData<Dtype>(usr_mpd, prv_mpd, top[0], this));
+    }
     output_memory = fwd_top_data->create_output_memory();
 
     mean_memory.resize(num_stats_batches_);
@@ -358,8 +372,10 @@ void MKLDNNBatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     LOG(INFO) << "MKLDNNBatchNormLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
 #endif
 
-    if(BatchNormFwd_pd == NULL)
+    if(BatchNormFwd_pd == NULL || this->reshape)
         InitBatchNorm(bottom, top);
+    bool inplace = (bottom[0] == top[0]);
+
     // making reorders if needed.
     fwd_bottom_data->sync_before_read();
     // update top that head at prv
@@ -400,7 +416,9 @@ void MKLDNNBatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
             this->blobs_[1]->mutable_cpu_data());
       }
     }
-
+    //the prv_descriptor_ will be exchanged back during the previous layer sync_before_write() call.
+    if(inplace && this->phase_ == TRAIN)
+        bottom[0]->data()->swap((inplace_buffer.data()));
 }
 
 template <typename Dtype>
@@ -457,6 +475,7 @@ void MKLDNNBatchNormLayer<Dtype>::InitBatchNormBwd(
       subengines = "MKLDNN:CPU";
     EngineParser ep(subengines);
     unsigned subEngineIndex = 0;
+    BatchNormBwd_pd = NULL;
     for(; subEngineIndex < ep.getNumberOfSubEngines(); subEngineIndex++) {
       try {
         BatchNormBwd_pd.reset(new batch_normalization_backward::primitive_desc(
@@ -527,7 +546,7 @@ void MKLDNNBatchNormLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     LOG(INFO) << "MKLDNNBatchNormLayer<Dtype>::Backward_cpu: " << this->layer_param_.name();
 #endif
 
-    if (BatchNormBwd_pd == NULL)
+    if (BatchNormBwd_pd == NULL || this->reshape)
         InitBatchNormBwd(top, propagate_down, bottom);
     // making reorders if needed.
     bwd_top_diff->sync_before_read();

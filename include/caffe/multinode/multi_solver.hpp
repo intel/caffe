@@ -74,8 +74,7 @@ class MultiSolver {
   protected:
     virtual ~Callback() {
     }
-    virtual void on_iter_finished(int layer_id) = 0;
-
+    virtual void on_backward_finished(int layer_id) = 0;
     virtual void on_delwt_wait(int layer_id) = 0;
     virtual void apply_updates(int layer_id) = 0;
 
@@ -112,8 +111,9 @@ class MultiSolver {
 #endif
  private:
   virtual Dtype ForwardBackwardImpl(bool first, bool last);
-  bool IsSkipWaitGradient(int layer_id);
-  void WaitAndUpdateGradient(int layer_id);
+  bool IsSkipSyncGradient(int layer_id);
+  bool WaitGradient(int layer_id);
+  void UpdateGradient(int layer_id);
 
  protected:
   boost::shared_ptr<Solver<Dtype>> root_solver_;

@@ -6,6 +6,16 @@ if(DEFINED CMAKE_BUILD_TYPE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
 endif()
 
+if(DISABLE_BN_FOLDING)
+	message(STATUS "Bn folding is disabled!")
+	add_definitions("-DDISABLE_BN_FOLDING")
+endif()
+
+if(DISABLE_CONV_SUM_FUSION)
+	message(STATUS "conv/eltwise/relu fusion is disabled!")
+	add_definitions("-DDISABLE_CONV_SUM_FUSION")
+endif()
+
 # --[ If user doesn't specify build type then assume release
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
   set(CMAKE_BUILD_TYPE Release)

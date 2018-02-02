@@ -889,8 +889,12 @@ template <typename TypeParam>
 class NetTestCPU : public ParentTest<CPUDeviceTest<TypeParam>> {
 };
 
-
+#ifdef USE_MKLDNN_AS_DEFAULT_ENGINE
+TYPED_TEST_CASE(NetTest, MKLDNNTestDtypesAndDevices);
+#else
 TYPED_TEST_CASE(NetTest, TestDtypesAndDevices);
+#endif
+
 TYPED_TEST_CASE(NetTestCPU, TestDtypes);
 
 TYPED_TEST(NetTest, TestHasBlob) {
@@ -985,6 +989,7 @@ TYPED_TEST(NetTest, TestBottomNeedBackwardTricky) {
   // at training/test time.
   EXPECT_EQ(true, bottom_need_backward[3][1]);
 }
+
 
 TYPED_TEST(NetTest, TestLossWeight) {
   typedef typename TypeParam::Dtype Dtype;
@@ -1264,6 +1269,7 @@ TYPED_TEST(NetTest, TestSharedWeightsDiffNet) {
   }
 }
 
+#ifndef USE_MKLDNN_AS_DEFAULT_ENGINE
 TYPED_TEST(NetTest, TestSharedWeightsUpdate) {
   typedef typename TypeParam::Dtype Dtype;
   Caffe::set_random_seed(this->seed_);
@@ -1344,6 +1350,7 @@ TYPED_TEST(NetTest, TestSharedWeightsUpdate) {
     EXPECT_NE(expected_updated_params, expected_updated_params1);
   }
 }
+#endif
 
 TYPED_TEST(NetTest, TestSharedWeightsResume) {
   typedef typename TypeParam::Dtype Dtype;
@@ -1390,6 +1397,7 @@ TYPED_TEST(NetTest, TestSharedWeightsResume) {
   }
 }
 
+#ifndef USE_MKLDNN_AS_DEFAULT_ENGINE
 TYPED_TEST(NetTest, TestParamPropagateDown) {
   typedef typename TypeParam::Dtype Dtype;
   const bool kBiasTerm = true, kForceBackward = false;
@@ -1470,6 +1478,7 @@ TYPED_TEST(NetTest, TestParamPropagateDown) {
     }
   }
 }
+#endif
 
 TYPED_TEST(NetTest, TestFromTo) {
   typedef typename TypeParam::Dtype Dtype;
@@ -2422,6 +2431,7 @@ TEST_F(FilterNetTest, TestFilterInOutByExcludeMultiRule) {
   this->RunFilterNetTest(input_proto_test, output_proto_test);
 }
 
+#ifndef USE_MKLDNN_AS_DEFAULT_ENGINE
 TYPED_TEST(NetTest, TestReshape) {
   typedef typename TypeParam::Dtype Dtype;
   // We set up bottom blobs of two different sizes, switch between
@@ -2493,6 +2503,7 @@ TYPED_TEST(NetTest, TestReshape) {
   }
   EXPECT_FALSE(same_spatial_shape);
 }
+#endif
 
 // TODO: this test should work for Caffe Engine as well
 // but there were problems visible on Intel OpenMP
@@ -2986,7 +2997,7 @@ class CompileNetTest : public ::testing::Test {
        double_net_string);
   }
 };
-
+#ifndef DISABLE_BN_FOLDING
 TEST_F(CompileNetTest, TestRemoveBatchNorm1) {
   const string& input_proto = 
       "name: 'TestNetwork' "
@@ -3211,6 +3222,8 @@ TEST_F(CompileNetTest, TestRemoveBatchNorm4) {
       "} ";
   this->RunCompilerNetTest(input_proto, output_proto);
 }
+#endif
+
 #ifdef MKL2017_SUPPORTED
 // If BatchNorm of engine MKL2017
 // produce blob consumed by
@@ -3447,6 +3460,116 @@ TEST_F(CompileNetTest, TestCompileNetBatchNormConvolution) {
       "  bottom: 'label' "
       "} ";
   this->RunCompilerNetTest(input_proto, output_proto);
+}
+#endif
+
+#ifndef DISABLE_CONV_SUM_FUSION
+TEST_F(CompileNetTest, TestCompileNetConvEltReluFusionMKLDNN) {
+
+  const string& input_proto =
+      "name: 'TestNetwork' "
+      "layer { "
+      "  name: 'data' "
+      "  type: 'Data' "
+      "  top: 'data' "
+      "  top: 'label' "
+      "} "
+      "layer { "
+      "  bottom: 'data' "
+      "  name: 'conv1' "
+      "  top: 'conv1' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  bottom: 'data' "
+      "  name: 'conv2' "
+      "  top: 'conv2' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  bottom: 'conv1' "
+      "  name: 'conv3' "
+      "  top: 'conv3' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  bottom: 'conv2' "
+      "  bottom: 'conv3' "
+      "  name: 'conv4' "
+      "  top: 'relu' "
+      "  type: 'Eltwise' "
+      "} "
+      
+      "layer { "
+      " bottom: 'relu' "
+      " top: 'relu' "
+      " name: 'relu' "
+      " type: 'ReLU' "
+      "}"
+
+      "layer { "
+      "  name: 'loss' "
+      "  type: 'SoftmaxWithLoss' "
+      "  bottom: 'relu' "
+      "  bottom: 'label' "
+      "} ";
+
+  const string& output_proto =
+      "name: 'TestNetwork' "
+      "layer { "
+      "  name: 'data' "
+      "  type: 'Data' "
+      "  top: 'data' "
+      "  top: 'label' "
+      "} "
+
+      "layer { "
+      "  bottom: 'data' "
+      "  name: 'conv1' "
+      "  top: 'conv1' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  bottom: 'data' "
+      "  name: 'conv2' "
+      "  top: 'conv2' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  bottom: 'conv1' "
+      "  bottom: 'conv2' "
+      "  name: 'conv3' "
+      "  top: 'relu' "
+      "  type: 'Convolution' "
+      "  convolution_param { "
+      "   engine: MKLDNN "
+      "  } "
+      "} "
+      "layer { "
+      "  name: 'loss' "
+      "  type: 'SoftmaxWithLoss' "
+      "  bottom: 'relu' "
+      "  bottom: 'label' "
+      "} ";
+ 
+ const string input_proto_test = "state: { phase: TEST } engine: 'MKLDNN'" + input_proto;
+ const string output_proto_test = "state: { phase: TEST } engine: 'MKLDNN'" + output_proto;
+ this->RunCompilerNetTest(input_proto_test, output_proto_test);
 }
 #endif
 
