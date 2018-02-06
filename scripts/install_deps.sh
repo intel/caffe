@@ -67,10 +67,8 @@ function install_python_deps
 {
     eval $command_prefix pip install --upgrade pip
     pushd $root_dir/python >/dev/null
-    for req in $(cat requirements.txt) pydot;
-    do
-        eval $command_prefix pip install $req
-    done
+    pip install -r requirements.txt
+    pip install pydot
     popd >/dev/null
 }
 function install_deps
