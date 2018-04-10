@@ -1,3 +1,4 @@
+#top-5: 0.93218 with raw lmdb
 net: "train_val.prototxt"
 test_iter: 1000
 test_interval: 625
@@ -15,5 +16,5 @@ warmup_start_lr: 0.1
 momentum: 0.9
 weight_decay: 0.0001
 snapshot: 6250
-snapshot_prefix: "resnet_50_16_nodes_2k_batch_warmup3"
+snapshot_prefix: "resnet_50_16_nodes_2k_batch"
 solver_mode: CPU
