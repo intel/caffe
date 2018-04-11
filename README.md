@@ -56,16 +56,21 @@ Intel® Distribution of Caffe* multi-node allows you to execute deep neural netw
 
 To understand how it works and read some tutorials, go to our Wiki. Start from [Multinode guide](https://github.com/intel/caffe/wiki/Multinode-guide).
 
-## Resnet50 for ImageNet on Intel Caffe for Dawn Bench
+## Resnet50 for ImageNet to achieve >93% Top-5 accuracy 
 ### Training
 To run Resnet50 training for Top-5 >93% accuracy, please run the following command on 16 nodes, if your cluster is OPA:
+
     scripts/run_intelcaffe.sh --hostfile hosts.current --mode train --debug off --network opa --num_mlsl_servers -1 --engine MKLDNN --num_omp_threads 0 --solver models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch/solver.prototxt --output intelcaffe_workspace --benchmark none  
   
+
 Please run training with compreassed lmdb of ImageNet without resize. The test accuracy with ImageNet validation set is top-1: 0.76332 and top-5: 0.93218. The model is at models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch/resnet_50_16_nodes_2k_batch_100_warmup3_iter_56250.caffemodel. For more details about Intel Caffe multinode test, please refer to https://github.com/intel/caffe/wiki/Multinode-guide.
 
 ### Inference
 We run Resnet50 inference on AWS cx.4xlarge, which is "Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz" with 1 socket and 8 physical cores.See https://aws.amazon.com/ec2/pricing/on-demand/. Command:
+
+
    numactl -l ./build/tools/caffe test -model models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch/train_val.prototxt -iterations 50000 -weights models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch/resnet_50_16_nodes_2k_batch_100_warmup3_iter_56250.caffemodel 
+
 
 The latency to inference 1 image is 18.87ms and cost for inference 10000 ImageNet valdiation images are $0.036 in average. 
 
