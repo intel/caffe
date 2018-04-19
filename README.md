@@ -59,6 +59,8 @@ The latency to inference 1 image is 12.4ms and cost for inference 10000 ImageNet
  
    sh examples/imagenet/create_imagenet_raw.sh
 
+### Training
+Please refer to "Guide to Launch Intel Caffe Multi Nodes Training on AWS.docx" to setup Intel Caffe multinode training on AWS. We achieved Top-1 76.052 and Top-5 93.0482 within 6.17 hours on 64 Amazon EC2 [c5.18xlarge] nodes (Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz, 2 sockets, each 18 cores) .
 
 ## License and Citation
 Caffe is released under the [BSD 2-Clause license](https://github.com/BVLC/caffe/blob/master/LICENSE).
