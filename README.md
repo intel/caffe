@@ -48,11 +48,13 @@ To understand how it works and read some tutorials, go to our Wiki. Start from [
 
 ## Resnet50 for ImageNet to achieve >93% Top-5 accuracy 
 ### Inference
-We run Resnet50 inference on AWS cx.4xlarge, which is "Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz" with 1 socket and 8 physical cores.See https://aws.amazon.com/ec2/pricing/on-demand/. Command:
+We run Resnet50 inference on AWS c5.4xlarge, which is "Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz" with 1 socket and 8 physical cores.See https://aws.amazon.com/ec2/pricing/on-demand/. Command:
 
    numactl -l ./build/tools/caffe test -model models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch_int8_prune/deploy.prototxt -iterations 50000 -weights models/intel_optimized_models/multinode/resnet_50_16_nodes_2k_batch_int8_prune/Facebook_resnet_50_2_nodes_256_batch_100_warmup3_15p_finest_tune_iter_439600.caffemodel
 
 The latency to inference 1 image is 12.4ms and cost for inference 10000 ImageNet valdiation images are $0.023 in average. The top-5 accuracy is 0.9307. 
+
+On AWS c5.18xlarge, the latency to inference 1 image is even less than 10ms.
 
 #### To creates lmdb without resize for the inference
    prepare imagenet dataset and run this command under caffe working folder:
