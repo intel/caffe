@@ -1,5 +1,4 @@
 name: "ResNet-50"
-#bn_stats_batch_size: 32
 layer {
   name: "data"
   type: "Data"
@@ -25,7 +24,7 @@ layer {
     }
   }
   data_param {
-    source: "/home/ec2-user/Data/ilsvrc12_train_lmdb"
+    source: "examples/imagenet/ilsvrc12_train_lmdb"
     batch_size: 32 
     backend: LMDB
     prefetch: 2
@@ -56,7 +55,7 @@ layer {
     }
   }
   data_param {
-    source: "/home/ec2-user/Data/ilsvrc12_val_lmdb"
+    source: "examples/imagenet/ilsvrc12_val_lmdb"
     batch_size: 50
     backend: LMDB
   }
