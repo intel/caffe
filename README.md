@@ -64,6 +64,8 @@ Please refer to "Guide to Launch Intel Caffe Multi Nodes Training on AWS.docx" t
 
 On Resnet50 we achieved Top-1 76.052 and Top-5 93.0482 within 6.17 hours on 64 Amazon EC2 [c5.18xlarge] nodes (Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz, 2 sockets, each 18 cores) .
 
+On Resnet50 we achieved Top-1 76.148 and Top-5 93.0202 within 3.4 hours on 128 Amazon EC2 [c5.18xlarge] nodes (Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz, 2 sockets, each 18 cores) .
+
 On Resnet56 we achieved Top-1 76.428 and Top-5 93.1062 within 3.53 hours on 128 Amazon EC2 [c5.18xlarge] nodes (Intel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz, 2 sockets, each 18 cores) .
 
 ## License and Citation
