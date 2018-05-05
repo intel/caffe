@@ -35,11 +35,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
 #endif  // USE_OPENCV
 #include <stdint.h>
-#include <string>
+
 #include <vector>
 
 #include "caffe/data_transformer.hpp"
@@ -64,15 +65,13 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const int batch_size = this->layer_param_.data_param().batch_size();
   // Read a data point, and use it to initialize the top blob.
-  Datum datum;
-  datum.ParseFromString(*(reader_.full().peek()));
+  Datum& datum = *(reader_.full().peek());
 
   // Use data_transformer to infer the expected blob shape from datum.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(datum);
   this->transformed_data_.Reshape(top_shape);
   // Reshape top[0] and prefetch_data according to the batch_size.
   top_shape[0] = batch_size;
-
   top[0]->Reshape(top_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].data_.Reshape(top_shape);
@@ -80,9 +79,26 @@ void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
+
   // label
+  //###
+  // if (this->output_labels_) {
+  //   vector<int> label_shape(1, batch_size);
+  //   top[1]->Reshape(label_shape);
+  //   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+  //     this->prefetch_[i].label_.Reshape(label_shape);
+  //   }
+  // }
+
+  //###
+  int labelNum = 4;
   if (this->output_labels_) {
-    vector<int> label_shape(1, batch_size);
+
+    vector<int> label_shape;
+    label_shape.push_back(batch_size);
+    label_shape.push_back(labelNum);
+    label_shape.push_back(1);
+    label_shape.push_back(1);
     top[1]->Reshape(label_shape);
     for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
       this->prefetch_[i].label_.Reshape(label_shape);
@@ -98,23 +114,16 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   double read_time = 0;
   double trans_time = 0;
   CPUTimer timer;
-  CPUTimer trans_timer;
   CHECK(batch->data_.count());
-
-#ifndef _OPENMP
   CHECK(this->transformed_data_.count());
-#endif
 
   // Reshape according to the first datum of each batch
   // on single input batches allows for inputs of varying dimension.
   const int batch_size = this->layer_param_.data_param().batch_size();
-  Datum datum;
-  datum.ParseFromString(*(reader_.full().peek()));
+  Datum& datum = *(reader_.full().peek());
   // Use data_transformer to infer the expected blob shape from datum.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(datum);
-#ifndef _OPENMP
   this->transformed_data_.Reshape(top_shape);
-#endif
   // Reshape batch according to the batch_size.
   top_shape[0] = batch_size;
   batch->data_.Reshape(top_shape);
@@ -125,52 +134,38 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   if (this->output_labels_) {
     top_label = batch->label_.mutable_cpu_data();
   }
-
-  trans_timer.Start();
-#ifdef _OPENMP
-  #pragma omp parallel if (batch_size > 1)
-  #pragma omp single nowait
-#endif
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     timer.Start();
     // get a datum
-    string* data = (reader_.full().pop("Waiting for data"));
-    timer.Stop();
+    Datum& datum = *(reader_.full().pop("Waiting for data"));
     read_time += timer.MicroSeconds();
+    timer.Start();
     // Apply data transformations (mirror, scale, crop...)
     int offset = batch->data_.offset(item_id);
+    this->transformed_data_.set_cpu_data(top_data + offset);
+    this->data_transformer_->Transform(datum, &(this->transformed_data_));
 
-#ifdef _OPENMP
-    PreclcRandomNumbers precalculated_rand_numbers;
-    this->data_transformer_->GenerateRandNumbers(precalculated_rand_numbers);
-    #pragma omp task firstprivate(offset, precalculated_rand_numbers, data, item_id)
-#endif
-    {
-      Datum datum;
-      datum.ParseFromString(*data);
-      (reader_.free()).push(data);  
-      // Copy label. We need to copy it before we release datum
-      if (this->output_labels_) {
-        top_label[item_id] = datum.label();
+    // Copy label.
+    //###
+    // if (this->output_labels_) {
+    //   top_label[item_id] = datum.label();
+    // }
+
+    //###
+    int labelNum = 4;
+    if (this->output_labels_) {
+      for(int i=0;i<labelNum;i++){
+        top_label[item_id*labelNum+i] = datum.float_data(i); //read float labels
       }
-#ifdef _OPENMP
-      Blob<Dtype> tmp_data;
-      tmp_data.Reshape(top_shape);
-      tmp_data.set_cpu_data(top_data + offset);
-      this->data_transformer_->Transform(datum, &tmp_data,
-                                              precalculated_rand_numbers);
-#else
-      this->transformed_data_.set_cpu_data(top_data + offset);
-      this->data_transformer_->Transform(datum, &(this->transformed_data_));
-#endif
     }
+
+
+    trans_time += timer.MicroSeconds();
+
+    reader_.free().push(const_cast<Datum*>(&datum));
   }
-  trans_timer.Stop();
+  timer.Stop();
   batch_timer.Stop();
-  // Due to multithreaded nature of transformation,
-  // time it takes to execute them we get from subtracting
-  // read batch of images time from total batch read&transform time
-  trans_time = trans_timer.MicroSeconds() - read_time;
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";
   DLOG(INFO) << "Transform time: " << trans_time / 1000 << " ms.";
