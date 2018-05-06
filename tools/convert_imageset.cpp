@@ -61,14 +61,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/util/io.hpp"
 #include "caffe/util/rng.hpp"
 
-#include <boost/tokenizer.hpp> //### To use tokenizer
-#include <iostream> //###
-
 using namespace caffe;  // NOLINT(build/namespaces)
 using std::pair;
 using boost::scoped_ptr;
-
-using namespace std;  //###
 
 DEFINE_bool(gray, false,
     "When this option is on, treat images as grayscale ones");
@@ -112,39 +107,16 @@ int main(int argc, char** argv) {
   const bool check_size = FLAGS_check_size;
   const bool encoded = FLAGS_encoded;
   const string encode_type = FLAGS_encode_type;
-  
+
   std::ifstream infile(argv[2]);
-  //std::vector<std::pair<std::string, int> > lines;  //###
-  /*
-  ** change the label value from int to vector<float>
-  ** the purpose of this change is to enable the regression problem
-  ** the integer value does not support multiple label or the float value
-  */
-  std::vector<std::pair<std::string, std::vector<float> > > lines;
+  std::vector<std::pair<std::string, int> > lines;
   std::string line;
-  //size_t pos;
-  //int label;  //###
-  std::vector<float> labels;
-
+  size_t pos;
+  int label;
   while (std::getline(infile, line)) {
-    // pos = line.find_last_of(' ');
-    // label = atoi(line.substr(pos + 1).c_str());
-    // lines.push_back(std::make_pair(line.substr(0, pos), label));
-    //###
-    std::vector<std::string> tokens;
-    boost::char_separator<char> sep(" ");
-    boost::tokenizer<boost::char_separator<char> > tok(line, sep);
-    tokens.clear();
-    std::copy(tok.begin(), tok.end(), std::back_inserter(tokens));  
-
-    for (int i = 1; i < tokens.size(); ++i)
-    {
-      labels.push_back(atof(tokens.at(i).c_str()));
-    }
-    
-    lines.push_back(std::make_pair(tokens.at(0), labels));
-    //###To clear the vector labels
-    labels.clear();
+    pos = line.find_last_of(' ');
+    label = atoi(line.substr(pos + 1).c_str());
+    lines.push_back(std::make_pair(line.substr(0, pos), label));
   }
   if (FLAGS_shuffle) {
     // randomly shuffle data
@@ -183,7 +155,7 @@ int main(int argc, char** argv) {
       enc = fn.substr(p);
       std::transform(enc.begin(), enc.end(), enc.begin(), ::tolower);
     }
-    status = ReadImageToDatum(root_folder + lines[line_id].first,   //###
+    status = ReadImageToDatum(root_folder + lines[line_id].first,
         lines[line_id].second, resize_height, resize_width, is_color,
         enc, &datum);
     if (status == false) continue;
