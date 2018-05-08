@@ -358,10 +358,10 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductBwd(const vector<Blob<Dtype
  if (this->bias_term_)
     ipBwdWeights_desc.reset(new inner_product_backward_weights::desc(init_bottom_md, init_weights_md
                         , init_bias_md, init_top_md));
- else
+ else{
     ipBwdWeights_desc.reset(new inner_product_backward_weights::desc(init_bottom_md, init_weights_md
                         , init_top_md));
-
+ }
     ipBwdData_desc.reset(new inner_product_backward_data::desc(init_bottom_md, init_weights_md, init_top_md));
 
     // ---- Determining engine to use -----------------------
