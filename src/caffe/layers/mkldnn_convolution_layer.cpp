@@ -262,14 +262,18 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolutionFwd(const vector<Blob<Dtype>*
       std::vector<float> scales(count);
       float scale;
       if(this->is_float_){
+#ifdef _OPENMP
         #pragma omp parallel for if (count > 1)
+#endif
         for(int i=0; i<count; i++){
           scale = this->scale_out_[0] / (this->scale_in_[0] * this->scale_params_[i]);
           scales[i] = scale;
         }
       } else {
         int output_shift;
+#ifdef _OPENMP
         #pragma omp parallel for if (count > 1)
+#endif
         for(int i=0; i<count; i++){
           output_shift = this->fl_layer_out_[0] - this->fl_layer_in_[0] - this->fl_params_[i];
           scale = pow(2. ,output_shift);
@@ -447,7 +451,9 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolutionFwd(const vector<Blob<Dtype>*
               count = oc;  //multi channel
           }
           std::vector<float> scale_weight(count);
+#ifdef _OPENMP
           #pragma omp parallel for if (count > 1)
+#endif
           for(int i=0; i<count; i++){
             scale_weight[i] = this->scale_params_[i];
           }
@@ -457,7 +463,9 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolutionFwd(const vector<Blob<Dtype>*
               count = oc;  //multi channel
           }
           std::vector<int> fl_weight(count);
+#ifdef _OPENMP
           #pragma omp parallel for if (count > 1)
+#endif
           for(int i=0; i<count; i++){
             fl_weight[i] = this->fl_params_[i];
           }
@@ -482,7 +490,9 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolutionFwd(const vector<Blob<Dtype>*
                   count = oc;  //multi channel
               }
               std::vector<float> scale_bias(count);
+#ifdef _OPENMP
               #pragma omp parallel for if (count > 1)
+#endif
               for(int i=0; i<count; i++){
                 scale_bias[i] = this->scale_in_[0] * this->scale_params_[i];
               }
@@ -492,7 +502,9 @@ void MKLDNNConvolutionLayer<Dtype>::InitConvolutionFwd(const vector<Blob<Dtype>*
                   count = oc;  //multi channel
               }
               std::vector<int> fl_bias(count);
+#ifdef _OPENMP
               #pragma omp parallel for if (count > 1)
+#endif
               for(int i=0; i<count; i++){
                 fl_bias[i] = this->fl_layer_in_[0] + this->fl_params_[i];
               }
