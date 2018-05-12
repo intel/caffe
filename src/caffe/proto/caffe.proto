@@ -615,7 +615,7 @@ message LayerParameter {
 }
 
 
-imessage ContinuationIndicatorParameter {
+message ContinuationIndicatorParameter {
   optional uint32 time_step = 1 [default = 0];
   optional uint32 batch_size = 2 [default = 0];
 }
