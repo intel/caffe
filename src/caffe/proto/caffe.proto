@@ -610,6 +610,14 @@ message LayerParameter {
   optional MnActivationParameter mn_activation_param = 151;
   optional MnParamGradCompressParameter mn_grad_compress_param = 156;
   optional QuantizationParameter quantization_param = 158;
+
+  optional ContinuationIndicatorParameter continuation_indicator_param = 200;
+}
+
+
+imessage ContinuationIndicatorParameter {
+  optional uint32 time_step = 1 [default = 0];
+  optional uint32 batch_size = 2 [default = 0];
 }
 
 message MultinodeLayerParameter {
