@@ -261,29 +261,12 @@ bool ReadImageToDatum(const string& filename, const vector<float> labels,
     const int height, const int width, const bool is_color,
     const std::string & encoding, Datum* datum) {
   cv::Mat cv_img = ReadImageToCVMat(filename, height, width, is_color);
-  if (cv_img.data) {
-    // if (encoding.size()) {
-    //   if ( (cv_img.channels() == 3) == is_color && !height && !width &&
-    //       matchExt(filename, encoding) )
-    //     return ReadFileToDatum(filename, label, datum);
-    //   std::vector<uchar> buf;
-    //   cv::imencode("."+encoding, cv_img, buf);
-    //   datum->set_data(std::string(reinterpret_cast<char*>(&buf[0]),
-    //                   buf.size()));
-    //   datum->set_label(label);
-    //   datum->set_encoded(true);
-    //   return true;
-    // }
-                    
+  if (cv_img.data) {               
     CVMatToDatum(cv_img, datum);
-    //datum->set_label(label);
-
-    //###
     for (int i = 0; i < labels.size(); ++i)
     {
       datum->add_float_data(labels.at(i));
     }
-
     return true;
   } else {
     return false;
