@@ -203,33 +203,29 @@ def transform_convolutions(model_path, compiled_model_path):
         inputwith_relu = get_all_top_layers(l, net, index, skip_layers, interesting_layers)
         for si in range(0, len(new_net.layer[index].quantization_param.scale_out)):
             if len(outputwith_relu) > 0 or l.name in u8_layers or conv_relu_flag:  # u8
-                new_net.layer[index].quantization_param.scale_out[si] = round(u8_max / new_net.layer[index].
-                                                                              quantization_param.scale_out[si], 2)
+                new_net.layer[index].quantization_param.scale_out[si] = u8_max / new_net.layer[index].quantization_param.scale_out[si]
             else:  # s8
-                new_net.layer[index].quantization_param.scale_out[si] = round(s8_max / new_net.layer[index].
-                                                                              quantization_param.scale_out[si], 2)
+                new_net.layer[index].quantization_param.scale_out[si] = s8_max / new_net.layer[index].quantization_param.scale_out[si]
 
         for si in range(0, len(new_net.layer[index].quantization_param.scale_in)):
             if len(inputwith_relu) > 0 or l.type == 'Convolution':  # u8
-                new_net.layer[index].quantization_param.scale_in[si] = round(u8_max / new_net.layer[index].
-                                                                             quantization_param.scale_in[si], 2)
+                new_net.layer[index].quantization_param.scale_in[si] = u8_max / new_net.layer[index].quantization_param.scale_in[si]
             else:
                 new_net.layer[index].ClearField('quantization_param')
                 continue
 
         for si in range(0, len(new_net.layer[index].quantization_param.scale_params)):
-            new_net.layer[index].quantization_param.scale_params[si] = round(s8_max / new_net.layer[index].
-                                                                             quantization_param.scale_params[si], 2)
+            new_net.layer[index].quantization_param.scale_params[si] = s8_max / new_net.layer[index].quantization_param.scale_params[si]
 
     with open(model_path, 'w') as f:
         f.write(str(new_net))
 
 
 def generate_sample(sample_path, input_model, weights,
-                    quantized_model, detection, scaling_mode, iterations=1, error_margin=1, power=0):
-    cmd = '{0} quantize -model {1} -weights {2} -model_quantized {3} -iterations {4} -error_margin {5} -power {6}' \
-          ' -scaling {7} -trimming_mode dynamic_fixed_point'.format(sample_path, input_model, weights, quantized_model,
-                                                                    iterations, error_margin, power, scaling_mode)
+                    quantized_model, detection, scaling_mode, iterations=1, error_margin=1):
+    cmd = '{0} quantize -model {1} -weights {2} -model_quantized {3} -iterations {4} -error_margin {5} ' \
+          ' -scaling {6} -trimming_mode dynamic_fixed_point'.format(sample_path, input_model, weights, quantized_model,
+                                                                    iterations, error_margin, scaling_mode)
     if detection:
         cmd += ' --detection=1'
 
@@ -243,8 +239,9 @@ def get_compiled_net(caffe_bin, model_def, model_weights, detection):
     if detection:
         cmd += ' -detection'
     cmd += ' 2>&1 > {}'.format(output_log_name)
-
+    os.environ['GLOG_minloglevel'] = '2'
     os.system(cmd)
+    os.environ.pop('GLOG_minloglevel')
     return os.path.abspath(output_log_name)
 
 
@@ -284,11 +281,10 @@ def remove_top_quantized_parameter(current_quantized_file):
 
 
 def tuning_quantized_topology(base_top1_accuracy, prototxt, caffe_bin, model_weights, iterations,
-                              is_floating_point, accuracy_loss, detection, blob_name):
-    if is_floating_point == 0:
-        print 'Updating quantization parameter...'
+                              accuracy_loss, detection, blob_name):
+    print 'Updating quantization parameter...'
 
-        transform_convolutions(prototxt, get_compiled_net(caffe_bin, prototxt, model_weights, detection))
+    transform_convolutions(prototxt, get_compiled_net(caffe_bin, prototxt, model_weights, detection))
 
     current_top1_accuracy = get_the_accuracy(caffe_bin, prototxt, model_weights, iterations, detection, blob_name)
 
@@ -325,6 +321,27 @@ def check_blob_name_existence(prototxt, blob_name):
                 return True
     return False
 
+def generate_dummy_model(model_path, dummy):
+    net = caffe_pb2.NetParameter()
+    with open(model_path) as f:
+        s = f.read()
+        txtf.Merge(s, net)
+
+    first_conv = True
+    convolution_layers = [(value, index) for index, value in enumerate(net.layer) if value.type == 'Convolution']
+    for (l, index) in convolution_layers:
+        if first_conv:
+            first_conv = False
+            continue
+        net.layer[index].quantization_param.bw_layer_in = 8
+        net.layer[index].quantization_param.bw_layer_out = 8
+        net.layer[index].quantization_param.bw_params = 8
+        net.layer[index].quantization_param.scale_in[:] = [1.0]
+        net.layer[index].quantization_param.scale_out[:] = [1.0]
+        net.layer[index].quantization_param.scale_params[:] = [1.0]
+
+    with open(dummy, 'w') as f:
+        f.write(str(net))
 
 if __name__ == '__main__':
     usage_string = 'Usage: 1.Build the caffe\n ' \
@@ -371,19 +388,33 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--sampling_iterations', action='store', dest='sampling_iterations', default=10,
                         help='iteration number of sampling, the default value is 10.')
 
+    parser.add_argument('-p', '--performance_model', dest='performance_model', action="store_true", default=False,
+                        help='to generate model to measure performance only')
+
     params = parser.parse_args()
     
     if not check_existence(params.root):
         print 'Please check the {} existence.'.format(params.root)
         sys.exit(-1)
-    
+
     pycaffe_path = os.path.abspath(os.path.dirname(os.path.abspath(params.root))) + os.path.sep + 'python'
     if not check_existence(pycaffe_path):
         print "Please check the pycaffe existence.Suggest to rebuild pycaffe via 'make pycaffe'"
     sys.path.insert(0, pycaffe_path)
     import caffe
     from caffe.proto import caffe_pb2
-    
+
+    model = os.path.abspath(params.model)
+    if not check_existence(model):
+        print 'Please check model: {} existence.'.format(model)
+        sys.exit(-1)
+
+    dummy_prototxt = model.rsplit('.')[0] + '_dummy.prototxt'
+    if params.performance_model:
+        generate_dummy_model(model, dummy_prototxt)
+        print 'Updated prototxt {} is generated.'.format(dummy_prototxt)
+        sys.exit(0)
+
     try:
         user_input_iterations = int(params.iterations)
     except:
@@ -403,7 +434,7 @@ if __name__ == '__main__':
             print 'Invalid sampling iteration!The value should be larger than zero.'
             sys.exit(-1)
 
-    if params.scaling_mode != 'multipe' and params.scaling_mode != 'single':
+    if params.scaling_mode != 'multiple' and params.scaling_mode != 'single':
         user_scaling_mode = 'single'
     else:
         user_scaling_mode = params.scaling_mode
@@ -421,11 +452,6 @@ if __name__ == '__main__':
     except:
         print 'Set the test type to classification.'
         detection_flag = 0
-
-    model = os.path.abspath(params.model)
-    if not check_existence(model):
-        print 'Please check model: {} existence.'.format(model)
-        sys.exit(-1)
 
     user_input_weights = os.path.abspath(params.weights)
     if not check_existence(user_input_weights):
@@ -453,17 +479,15 @@ if __name__ == '__main__':
         sys.exit(-1)
 
     quantized_prototxt = model.rsplit('.')[0] + '_quantized.prototxt'
-    quantized_weights = user_input_weights.rsplit('.')[0] + '_quantized.caffemodel'
-    enable_power_of_2 = 0
     print 'Sampling...'
     generate_sample(sample, model, user_input_weights, quantized_prototxt, detection_flag, user_scaling_mode,
-                    user_sampling_iteration, 100 * toleration, enable_power_of_2)
+                    user_sampling_iteration, 100 * toleration)
     print 'Sampling done'
     print 'Generating the FP32 accuracy...'
     top_1 = get_the_accuracy(caffe_bin_path, model, user_input_weights, user_input_iterations, detection_flag,
                              target_blob_name)
     print 'FP32 accuracy is: {}'.format(top_1)
     tuning_quantized_topology(top_1, quantized_prototxt, caffe_bin_path, user_input_weights, user_input_iterations,
-                              enable_power_of_2, toleration, detection_flag, target_blob_name)
+                              toleration, detection_flag, target_blob_name)
 
     print 'Updated prototxt {} is generated.'.format(quantized_prototxt)

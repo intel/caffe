@@ -53,7 +53,7 @@ MKLDNNSplitLayer<Dtype>::~MKLDNNSplitLayer() { }
 template <typename Dtype>
 void MKLDNNSplitLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  int count = bottom[0]->count();
+  size_t count = bottom[0]->count();
   for (int i = 0; i < top.size(); ++i) {
     // Do not allow in-place computation in the SplitLayer.  Instead, share data
     // by reference in the forward pass, and keep separate diff allocations in
@@ -170,7 +170,7 @@ void MKLDNNSplitLayer<Dtype>::InitSplitBwd(const vector<Blob<Dtype>*>& bottom,
 
   // ---- Determining engine to use -----------------------
   std::string subengines = this->layer_param_.engine();
-  if (subengines == "" || subengines == "MKLDNN")
+  if (subengines.find("MKLDNN") == std::string::npos || subengines == "MKLDNN")
     subengines = "MKLDNN:CPU";
   splitBwd_pd_.reset(new sum::primitive_desc({bottom_tz, data_type, diff_dst_mfmt},scale, prv_diff_srcs_mpd));
   CHECK(splitBwd_pd_);
