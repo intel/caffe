@@ -4,7 +4,7 @@ MAINTAINER caffe-maint@googlegroups.com
 #ENV http_proxy proxy:port
 #ENV https_proxy proxy:port
 
-RUN rpm -iUvh http://download.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-10.noarch.rpm
+RUN rpm -iUvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 RUN yum upgrade -y
 
