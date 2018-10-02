@@ -48,6 +48,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "boost/iterator/counting_iterator.hpp"
 
 #include "caffe/util/bbox_util.hpp"
+#ifdef USE_OPENCV
+#if CV_VERSION_MAJOR == 4
+#include <opencv2/videoio/videoio_c.h>
+#define CV_FILLED cv::FILLED
+#endif
+#endif
+
 #ifdef ENABLE_NMS_OPTIMIZATION
 #include <immintrin.h>
 #include "omp.h"
@@ -96,13 +103,13 @@ static inline float min(float a, float b) { return (a) < (b) ? (a) : (b); }
 #define MASK_ELEM(x, y) \
   ((uint64_t*)((char*)mask_tbl + x * blocks * sizeof(uint64_t)) + y)
 
-void cpu_nms_avx512_parallize_inner(int* __restrict keep_out, 
-                                    int* __restrict num_out, 
+void cpu_nms_avx512_parallize_inner(int* __restrict keep_out,
+                                    int* __restrict num_out,
                                     const float* __restrict x1,
                                     const float* __restrict y1,
-                                    const float* __restrict x2, 
+                                    const float* __restrict x2,
                                     const float* __restrict y2,
-                                    int64_t boxes_num, 
+                                    int64_t boxes_num,
                                     float thresh_f)
 {
     const int blocks = DIVUP(boxes_num, 64);
@@ -179,7 +186,7 @@ void cpu_nms_avx512_parallize_inner(int* __restrict keep_out,
 
             __m512 Sb_w = _mm512_sub_ps(x2_b, x1_b);
             __m512 Sb_h = _mm512_sub_ps(y2_b, y1_b);
-     
+
             __m512 Sb = _mm512_mul_ps(Sb_w, Sb_h);
 
             __m512 ovr = _mm512_add_ps(Sa, Sb);
@@ -1844,7 +1851,7 @@ void GetConfidenceScores(const Dtype* conf_data, const int num,
     }
   }
 #ifdef _OPENMP
-  #pragma omp parallel for 
+  #pragma omp parallel for
 #endif
   for (int i = 0; i < num; i++) {
     // #pragma omp parallel
@@ -2185,7 +2192,7 @@ void GetPriorBBoxes(const Dtype* prior_data, const int num_priors,
   }
 
   vector<float> var(4, 0);
-  
+
   for (int i = 0; i < num_priors; ++i) {
     for (int j = 0; j < 4; ++j) {
       var.at(j) = (prior_data[(num_priors + i) * 4 + j]);
