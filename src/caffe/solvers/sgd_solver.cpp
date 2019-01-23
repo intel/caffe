@@ -413,7 +413,6 @@ void SGDSolver<Dtype>::SGDFusion(int param_id, Dtype rate) {
 
   //ComputeUpdateValue  initialization
   Dtype momentum = this->param_.momentum();
-  Dtype local_rate = rate * GetLocalRate(param_id);
 //#pragma endregion
 
 //#pragma region 2. Common condition judgement
@@ -452,6 +451,8 @@ void SGDSolver<Dtype>::SGDFusion(int param_id, Dtype rate) {
     }
   }
 //#pragma endregion
+//execute GetLocalRate after Normalize stage
+Dtype local_rate = rate * GetLocalRate(param_id);
 
 //For most common topologies from BVLC, all skipped the Normalize stage, and use L2 regularization
 //If prv_diff_condition_flag == true, then prv_data_condition_flag == true    (1)
