@@ -2263,7 +2263,7 @@ void GetMaxScoreIndex(const vector<float>& scores, const float threshold,
 #endif
   for (int i = 0; i < scores.size(); ++i) {
     if (scores[i] > threshold) {
-      score_index_vec->at(i) = std::make_pair(scores[i], i);
+      score_index_vec->push_back(std::make_pair(scores[i], i));
     }
   }
 
@@ -2424,7 +2424,7 @@ void ApplyNMSFast(const vector<NormalizedBBox>& bboxes,
   CHECK_EQ(bboxes.size(), scores.size())
       << "bboxes and scores have different size.";
   // Get top_k scores (with corresponding indices).
-  vector<pair<float, int> > score_index_vec(scores.size());
+  vector<pair<float, int> > score_index_vec;    
   GetMaxScoreIndex(scores, score_threshold, top_k, &score_index_vec);
   // Do nms.
   float adaptive_threshold = nms_threshold;
