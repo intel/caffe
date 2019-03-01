@@ -1,0 +1,292 @@
+
+*****************************************************************************
+*  Run: KFW.py TMUL_INT_DirectConv -- -DTOPOLOGY_SSD_VGG16 -DSSD_VGG16_CONV5_1_3X3 -DM_C_TILES=30 -DM_CACHE_ITERS=1444 -DN_C_TILES=1 -DN_CACHE_ITERS=4 -DK_CACHE_ITERS=16 -DPOST_CONVOLUTION_TILE_BLOCK=8 -DVNNI_MODE -p CLX_28C_C -DFORCE_RECOMMENDATION
+*       Working area: /nfs/iil/disks/kfw/hshen14/kfw/scripts
+*           Log file: /nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_CMROF2TU.log
+*****************************************************************************
+*                  KFW: ver 1.0
+*             KWF area: /nfs/iil/disks/kfw/hshen14/kfw
+*              SVN tag: 
+*                   OS: Linux x86-64_3.0.101 SLES11SP4-4
+*            host name: icsl5842
+*               python: /usr/intel/pkgs/python/2.7/bin/python
+*          Date & Time: 03/07/18 03:38
+*                login: hshen14
+* group real/effective: intelall/intelall
+*   GID real/effective: 2222/2222
+*   UID real/effective: 11304553/11304553
+*           all groups: intelall arch_gst syssim oncsim
+*                  PID: 37503
+*****************************************************************************
+
+KFW Processor: CLX_28C_C
+TraceNameBase:       Hash_RTBX4CMR
+TraceSimulationName: Hash_RTBX4CMR.base.config
+Current kernel:      TMUL_INT_DirectConv
+Mode:                kernel
+
+=============================================================================
+==  Compiling Kernel ... 
+==  C Compiler ver: icc icc-avx3-20180601-lin64 99.0 Mainline (gcc version 4.7.2 compatibility)
+=============================================================================
+CMD: /usr/bin/make -f /nfs/iil/disks/kfw/hshen14/kfw/scripts/Makefile.KFW KERNEL_NAME=TMUL_INT_DirectConv EXECUTABLE=/nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR EXECUTABLE_NAME=Hash_RTBX4CMR MY_CFLAGS="-DBUILD_KERNEL_TMUL_INT_DirectConv -DTOPOLOGY_SSD_VGG16 -DSSD_VGG16_CONV5_1_3X3 -DM_C_TILES=30 -DM_CACHE_ITERS=1444 -DN_C_TILES=1 -DN_CACHE_ITERS=4 -DK_CACHE_ITERS=16 -DPOST_CONVOLUTION_TILE_BLOCK=8 -DVNNI_MODE -DFORCE_RECOMMENDATION  " COptFlag="" /nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR LOG_FILE=/nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_RTBX4CMR.log EnvParamFile=EnvParam
+============ Makefile params: start ============
+Mode=kernel
+EXECUTABLE=/nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR
+OUT_NAME=
+SIMULATOR_FILE=
+SIMULATOR_SCRIPT=
+TRACE=
+TRACE_FILE=
+SIMULATOR_CMD=           2>&1 | tee -a /nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_RTBX4CMR.log
+AVL_CMD=python  /nfs/iil/disks/kfw/hshen14/kfw/results  /nfs/iil/disks/kfw/hshen14/kfw/results/avl/.avl_mapping.csv .FS .AF adl 2>&1 | tee -a /nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_RTBX4CMR.log
+============ Makefile params: end ============
+======================= Compiling Kernel: start =======================
+ICC
+rm -f "/nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR" /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/bin//Hash_RTBX4CMR
+cd ../kernels//TMUL_INT_DirectConv
+rm -f *.o
+mkdir -p /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/bin/
+/nfs/iil/disks/kfw/tools/compiler/icc-avx3-20180601-lin64/bin/icc -I /nfs/iil/disks/kfw/hshen14/kfw/management/base_classes -I /nfs/iil/disks/kfw/hshen14/kfw/management/kernel_framework -I /nfs/iil/disks/kfw/hshen14/kfw/management/list -I /nfs/iil/disks/kfw/hshen14/kfw/tools/iaca -I /nfs/iil/disks/kfw/hshen14/kfw/tools/libs -I /nfs/iil/disks/kfw/hshen14/kfw/tools  -I /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv -O3 -xcore-avx512 -restrict  -DBUILD_KERNEL_TMUL_INT_DirectConv -DTOPOLOGY_SSD_VGG16 -DSSD_VGG16_CONV5_1_3X3 -DM_C_TILES=30 -DM_CACHE_ITERS=1444 -DN_C_TILES=1 -DN_CACHE_ITERS=4 -DK_CACHE_ITERS=16 -DPOST_CONVOLUTION_TILE_BLOCK=8 -DVNNI_MODE -DFORCE_RECOMMENDATION   -g -fasm-blocks -DBUILD_KERNEL_TMUL_INT_DirectConv -DTOPOLOGY_SSD_VGG16 -DSSD_VGG16_CONV5_1_3X3 -DM_C_TILES=30 -DM_CACHE_ITERS=1444 -DN_C_TILES=1 -DN_CACHE_ITERS=4 -DK_CACHE_ITERS=16 -DPOST_CONVOLUTION_TILE_BLOCK=8 -DVNNI_MODE -DFORCE_RECOMMENDATION   /nfs/iil/disks/kfw/hshen14/kfw/management/list/KernelFrameworkList.cpp /nfs/iil/disks/kfw/hshen14/kfw/management/kernel_framework/KernelFramework.cpp /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/TMUL_INT_DirectConv.cpp /nfs/iil/disks/kfw/hshen14/kfw/management/base_classes/BaseKernel.cpp /nfs/iil/disks/kfw/hshen14/kfw/management/base_classes/AVXMedia_BaseKernel.cpp /nfs/iil/disks/kfw/hshen14/kfw/management/kernel_framework/set_affin_lnx.cpp  -o "/nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/bin//Hash_RTBX4CMR"  2>&1 | tee -a "/nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_RTBX4CMR.log"
+In file included from /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/TMUL_INT_DirectConv.cpp(339):
+/nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/MAT_MUL.h(138): warning #1224: #warning directive: "Using arrays for A tile indexing"
+  #warning "Using arrays for A tile indexing"
+   ^
+
+====================== Flow: F2
+rm -f *.o
+mv /nfs/iil/disks/kfw/hshen14/kfw/kernels//TMUL_INT_DirectConv/bin//Hash_RTBX4CMR /nfs/iil/disks/kfw/hshen14/kfw/results/executables/
+chmod +rwx /nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR
+chgrp arch_gst /nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR
+chgrp arch_gst /nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_RTBX4CMR.log*
+======================= Compiling Kernel: end =======================
+
+=============================================================================
+==  Running SDE ... 
+==  SDE ver:  8.23.0 internal-conf sde-internal-conf-8.23.0-2018-06-14-lin
+=============================================================================
+CMD: /nfs/iil/disks/kfw/tools/SDE/sde-internal-conf-8.23.0-2018-06-14-lin/sde  -clx  -- /nfs/iil/disks/kfw/hshen14/kfw/results/executables/Hash_RTBX4CMR  
+
+Framework is running 
+
+-= Kernel Framework Version 1.0 4.1.09 =-
+
+setting Default affinity, mask=0x0001
+(*) Kernel Details
+
+Kernel Name: TMUL_INT_DirectConv
+
+(*) Setting Kernel Parameters
+
+Error: total spatial dimension (OFM_H * OFM_W = 19 * 19 = 361) must be a multiple of the number of rows used in all M_CACHE_ITERS (1444) tiles you're using, which is 1444.
+Following are suggestions for possible blocking. Only showing tile fill efficiency (TFE) > 80% (you can change the threshold by -DM_SUGGESTION_EFF_THRESHOLD=X) :
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=1, M_CACHE_ITERS=   1, TFE=100.00%
+    N_C_TILES=1, #Tiles used=3, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=4, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=6, N_CACHE_ITERS=4,8,16,32,
+    N_C_TILES=8, #Tiles used=10, N_CACHE_ITERS=8,16,32,
+    N_C_TILES=16, #Tiles used=18, N_CACHE_ITERS=16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=1, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=3, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=4, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=6, N_CACHE_ITERS=4,8,16,32,
+    N_C_TILES=8, #Tiles used=10, N_CACHE_ITERS=8,16,32,
+    N_C_TILES=16, #Tiles used=18, N_CACHE_ITERS=16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=1, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=3, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=4, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=6, N_CACHE_ITERS=4,8,16,32,
+    N_C_TILES=8, #Tiles used=10, N_CACHE_ITERS=8,16,32,
+    N_C_TILES=16, #Tiles used=18, N_CACHE_ITERS=16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=2, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=4, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=7, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=13, N_CACHE_ITERS=4,8,16,32,
+    N_C_TILES=8, #Tiles used=25, N_CACHE_ITERS=8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=2, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=4, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=7, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=13, N_CACHE_ITERS=4,8,16,32,
+    N_C_TILES=8, #Tiles used=25, N_CACHE_ITERS=8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=3, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=5, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=9, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=17, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=3, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=5, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=9, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=17, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=4, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=6, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=11, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=21, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=4, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=6, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=11, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=21, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=5, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=7, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=13, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=25, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=5, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=7, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=13, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=25, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=6, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=8, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=15, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=29, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=6, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=8, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=15, N_CACHE_ITERS=2,4,8,16,32,
+    N_C_TILES=4, #Tiles used=29, N_CACHE_ITERS=4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=7, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=9, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=17, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=7, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=9, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=17, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=8, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=10, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=19, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=8, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=10, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=19, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=9, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=11, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=21, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=9, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=11, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=21, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=10, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=12, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=23, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=10, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=12, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=23, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=11, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=13, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=25, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=11, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=13, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=25, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=12, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=14, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=27, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=12, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=14, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=27, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=13, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=15, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=29, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=13, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=15, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=29, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=14, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=16, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=31, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=14, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=16, N_CACHE_ITERS=1,2,4,8,16,32,
+    N_C_TILES=2, #Tiles used=31, N_CACHE_ITERS=2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=15, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=17, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=15, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=17, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=16, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=18, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=16, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=18, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=17, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=19, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=17, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=19, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=18, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=20, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=18, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=20, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=19, M_CACHE_ITERS=  19, TFE=100.00%
+    N_C_TILES=1, #Tiles used=21, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=19, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=21, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=20, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=22, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=21, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=23, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=22, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=24, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=23, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=25, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=24, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=26, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=25, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=27, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=26, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=28, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=27, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=29, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=28, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=30, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=29, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=31, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+M1_TMUL= 1, M2_TMUL= 1, M_C_TILES=30, M_CACHE_ITERS= 361, TFE=100.00%
+    N_C_TILES=1, #Tiles used=32, N_CACHE_ITERS=1,2,4,8,16,32,
+    K_CACHE_ITERS=1,2,4,8,16,32,64,128,
+
+*****************************************************************************
+*  Exit: KFW.py TMUL_INT_DirectConv -- -DTOPOLOGY_SSD_VGG16 -DSSD_VGG16_CONV5_1_3X3 -DM_C_TILES=30 -DM_CACHE_ITERS=1444 -DN_C_TILES=1 -DN_CACHE_ITERS=4 -DK_CACHE_ITERS=16 -DPOST_CONVOLUTION_TILE_BLOCK=8 -DVNNI_MODE -p CLX_28C_C -DFORCE_RECOMMENDATION
+*           Log file: /nfs/iil/disks/kfw/hshen14/kfw/results/logs/Hash_CMROF2TU.log
+*****************************************************************************
+*                KFW: Done
+*        Date & Time: 03/07/18 03:38
+*****************************************************************************
+
+KFW: Done

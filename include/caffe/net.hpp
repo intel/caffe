@@ -54,6 +54,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace caffe {
 
+struct CircleBuf {
+  void* buf;
+  int refcnt;
+};
+
 /**
  * @brief Connects Layer%s together into a directed acyclic graph (DAG)
  *        specified by a NetParameter.
@@ -68,6 +73,8 @@ class Net {
       const int level = 0, const vector<string>* stages = NULL,
       const Net* root_net = NULL, std::string engine = "");
   virtual ~Net() {}
+
+  static vector<struct CircleBuf> circleBuf;
 
   /// @brief Initialize a network with a NetParameter.
   void Init(const NetParameter& param);
@@ -523,6 +530,7 @@ class Net {
   vector<bool> has_params_decay_;
   /// The bytes of memory used by this net
   size_t memory_used_;
+  size_t max_blob_count;
   /// Whether to compute and display debug info for the net.
   bool debug_info_;
   /// The root net that actually holds the shared layers in data parallelism
@@ -530,6 +538,7 @@ class Net {
   DISABLE_COPY_AND_ASSIGN(Net);
 };
 
+template<typename Dtype> vector<struct CircleBuf> Net<Dtype>::circleBuf;
 
 }  // namespace caffe
 
