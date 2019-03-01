@@ -382,8 +382,11 @@ void MKLDNNConcatLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
 #ifdef DEBUG
   LOG(INFO) << "MKLDNNConcatLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
 #endif
-  if ((NULL == concatFwd_pd) || (true == this->reshape))
+  bool _mkldnn_primitive = false;
+  if ((NULL == concatFwd_pd) || (true == this->reshape)) {
     InitConcatFwd(bottom, top);
+    _mkldnn_primitive = true;
+  }
 
   for (auto i = 0; i < num_concats_; i++) {
     // making reorders if needed.
@@ -397,6 +400,21 @@ void MKLDNNConcatLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     PERFORMANCE_MEASUREMENT_BEGIN();
     concatFwd.submit();
     PERFORMANCE_MEASUREMENT_END_ID(perf_id_fw_);
+
+    if(_mkldnn_primitive) {
+      for (auto i = 0; i < num_concats_; i++) {
+        bool found = false;
+        for(auto & buf : Net<Dtype>::circleBuf) {
+          if (bottom[i]->prv_data() && (buf.buf == bottom[i]->prv_data())) {assert(buf.refcnt > 0); if (buf.refcnt > 1) VLOG(1) << "!!! input is not 0 at " << this->layer_param_.name() << " with refcnt: " << buf.refcnt << "!!!" ;buf.refcnt--; found = true;}
+        }
+
+        if(!Net<Dtype>::circleBuf.empty()) {
+          assert(found || (bottom[i]->prv_data() == NULL));
+          // add below to avoid unused variable warning for release build pass.
+          (void)sizeof(found);
+        }
+      }
+    } 
   }
 }
 

@@ -612,9 +612,11 @@ void MKLDNNConvolutionLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
       for(auto & buf : Net<Dtype>::circleBuf) {
         if (buf.buf == bottom[0]->prv_data()) {assert(buf.refcnt > 0); if (buf.refcnt > 1) VLOG(1) << "!!! input is not 0 at " << this->layer_param_.name() << "with refcnt: " << buf.refcnt << "!!!" ;buf.refcnt--; found = true; break;}
       }
-      assert(found);
-      // add below to avoid unused variable warning for release build pass.
-      (void)sizeof(found);
+      if(!Net<Dtype>::circleBuf.empty()) {
+        assert(found);
+        // add below to avoid unused variable warning for release build pass.
+        (void)sizeof(found);
+      }
     }
     PERFORMANCE_MEASUREMENT_END_ID(perf_id_fw_);
 }

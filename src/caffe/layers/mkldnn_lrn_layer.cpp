@@ -216,8 +216,11 @@ void MKLDNNLRNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
                                         ,const vector<Blob<Dtype>*>& top)
 {
     VLOG(1) << "MKLDNNLRNLayer<Dtype>::Forward_cpu: " << this->layer_param_.name();
-    if( lrnFwd_pd == NULL || this->reshape)
+    bool _mkldnn_primitive = false;
+    if( lrnFwd_pd == NULL || this->reshape) {
         InitLRNFwd(bottom, top);
+        _mkldnn_primitive = true;
+    }
 
     // making reorders if needed.
     fwd_bottom_data->sync_before_read();
@@ -227,6 +230,19 @@ void MKLDNNLRNLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     PERFORMANCE_EVENT_ID_INIT(perf_id_fw_, PERFORMANCE_MKLDNN_NAME("FW"));
     PERFORMANCE_MEASUREMENT_BEGIN();
     lrnFwd.submit();
+
+    if(_mkldnn_primitive && bottom[0]->prv_data()) {
+      bool found = false;
+      for(auto & buf : Net<Dtype>::circleBuf) {
+        if (buf.buf == bottom[0]->prv_data()) {assert(buf.refcnt > 0); if (buf.refcnt > 1) VLOG(1) << "!!! input is not 0 at " << this->layer_param_.name() << "with refcnt: " << buf.refcnt << "!!!" ;buf.refcnt--; found = true; break;}
+      }
+
+      if(!Net<Dtype>::circleBuf.empty()) {
+        assert(found);
+        // add below to avoid unused variable warning for release build pass.
+        (void)sizeof(found);
+      }
+    }  
     PERFORMANCE_MEASUREMENT_END_ID(perf_id_fw_);
 }
 

@@ -220,9 +220,11 @@ void MKLDNNSplitLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     for(auto & buf : Net<Dtype>::circleBuf) {
       if (buf.buf == bottom[0]->prv_data()) {assert(buf.refcnt == 1); buf.refcnt+= (top.size() - 1);found = true;}
     }
-    assert(found);
-    // add below to avoid unused variable warning for release build pass.
-    (void)sizeof(found);
+    if(!Net<Dtype>::circleBuf.empty()) {
+      assert(found);
+      // add below to avoid unused variable warning for release build pass.
+      (void)sizeof(found);
+    }
   }
   this->first = false;
 }

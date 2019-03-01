@@ -531,6 +531,7 @@ class Net {
   /// The bytes of memory used by this net
   size_t memory_used_;
   size_t max_blob_count;
+  size_t max_branch_count;
   /// Whether to compute and display debug info for the net.
   bool debug_info_;
   /// The root net that actually holds the shared layers in data parallelism

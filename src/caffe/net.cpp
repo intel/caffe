@@ -223,6 +223,8 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   top_id_vecs_.resize(param.layer_size());
   bottom_need_backward_.resize(param.layer_size());
   max_blob_count = 0;
+  max_branch_count = 0;
+  
   for (int layer_id = 0; layer_id < param.layer_size(); ++layer_id) {
     // For non-root solvers, whether this layer is shared from root_net_.
     bool share_from_root = !Caffe::root_solver()
@@ -272,6 +274,7 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
       need_backward |= blob_need_backward_[blob_id];
     }
     int num_top = layer_param.top_size();
+    if (max_branch_count < num_top) max_branch_count = num_top;
     for (int top_id = 0; top_id < num_top; ++top_id) {
       AppendTop(param, layer_id, top_id, &available_blobs, &blob_name_to_idx);
       // Collect Input layer tops as Net inputs.
@@ -374,10 +377,10 @@ void Net<Dtype>::Init(const NetParameter& in_param) {
   }
 
   bool cuda;
-  for (int index=0; index < 3; index++) {
+  for (int index=0; index < ((phase_ == TEST) ? (max_branch_count + 1) : 0); index++) {
     void* buf = NULL;
-    CaffeMallocHost(&buf, max_blob_count * sizeof(Dtype), &cuda);
-    LOG(INFO) << "alloc #" << index << " circle buf " << (index + 1) << " with " << max_blob_count * sizeof(Dtype) << " bytes at " << buf;
+    CaffeMallocHost(&buf, max_blob_count * sizeof(Dtype) * 4, &cuda);
+    VLOG(1) << "alloc #" << index << " circle buf " << (index + 1) << " with " << max_blob_count * sizeof(Dtype) << " bytes at " << buf;
     Net<Dtype>::circleBuf.push_back({buf, 0});
   }
 

@@ -321,6 +321,16 @@ void MKLDNNMemoryDescriptor<Dtype, is_diff>::convert_from_extprv(shared_ptr<prim
 #endif
     PERFORMANCE_MEASUREMENT_BEGIN();
     this->_reorder_extprv2prv.submit();
+
+    if(this->get_prv_memory()->get_data_handle()) {
+      //bool found = false;
+      for(auto & buf : Net<Dtype>::circleBuf) {
+        if (buf.buf == this->get_prv_memory()->get_data_handle()) {if (buf.refcnt == 0) break; buf.refcnt--; break;}
+      }
+      //assert(found);
+      // add below to avoid unused variable warning for release build pass.
+      //(void)sizeof(found);
+    } 
     PERFORMANCE_MEASUREMENT_END_STATIC("mkldnn_conversion");
 }
 

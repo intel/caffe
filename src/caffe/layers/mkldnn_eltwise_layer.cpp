@@ -262,11 +262,13 @@ void MKLDNNEltwiseLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom, 
       for (auto i = 0; i < num_bottoms_; i++) {
           bool found = false;
           for(auto & buf : Net<Dtype>::circleBuf) {
-            if (buf.buf == bottom[i]->prv_data()) {assert(buf.refcnt > 0); if (buf.refcnt > 1) VLOG(1) << "!!! input is not 0 at " << this->layer_param_.name() << " with refcnt: " << buf.refcnt << "!!!" ;buf.refcnt--; found = true;}
+            if (bottom[i]->prv_data() && (buf.buf == bottom[i]->prv_data())) {assert(buf.refcnt > 0); if (buf.refcnt > 1) VLOG(1) << "!!! input is not 0 at " << this->layer_param_.name() << " with refcnt: " << buf.refcnt << "!!!" ;buf.refcnt--; found = true; break;}
           }
-          assert(found);
-          // add below to avoid unused variable warning for release build pass.
-          (void)sizeof(found);
+          if(!Net<Dtype>::circleBuf.empty()) {
+            assert(found || (bottom[i]->prv_data() == NULL));
+            // add below to avoid unused variable warning for release build pass.
+            (void)sizeof(found);
+          }
       }
     }
     PERFORMANCE_MEASUREMENT_END_ID(perf_id_fw_);

@@ -137,6 +137,7 @@ protected:
               new memory(*_prv_memory_pd, (void*)_mlsl_memory.get()));
           } else {
 #endif
+          if(!Net<Dtype>::circleBuf.empty()) {
             if (!_is_weight) {
               //_m_memory = Net<Dtype>::buf;
               
@@ -152,6 +153,9 @@ protected:
               CaffeMallocHost(&_m_memory, _prv_memory_pd->get_size(), &cuda);
             }
             _prv_memory = shared_ptr<memory>(new memory(*_prv_memory_pd, _m_memory));
+          } else {
+            _prv_memory = shared_ptr<memory>(new memory(*_prv_memory_pd));
+          }
 #ifdef USE_MLSL
           }
 #endif
