@@ -169,6 +169,15 @@ bool ReadImageToDatum(const string& filename, const int label,
     const int height, const int width, const bool is_color,
     const std::string & encoding, Datum* datum);
 
+/*
+** overload function ReadImageDatum
+** the overloaded function aimed to solve the regression problem
+** here is shown to be able to handle unlabeled data, such as float data
+*/
+bool ReadImageToDatum(const string& filename, const vector<float> labels,
+    const int height, const int width, const bool is_color,
+    const std::string & encoding, Datum* datum);
+
 inline bool ReadImageToDatum(const string& filename, const int label,
     const int height, const int width, const bool is_color, Datum* datum) {
   return ReadImageToDatum(filename, label, height, width, is_color,
