@@ -6,6 +6,8 @@ import time
 import json
 import socket
 import logging
+from datetime import datetime
+
 
 class CaffeBenchmark(object):
     '''Used to do caffe benchmarking'''
@@ -274,7 +276,6 @@ class CaffeBenchmark(object):
         return intelcaffe_log
     
      def decode_sec(self, time_str):
-        from datetime import datetime
         start_time = time_str.split()[2]
         datetime_object = datetime.strptime(start_time, '%H:%M:%S.%f')
         return datetime_object
