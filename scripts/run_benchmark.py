@@ -275,7 +275,7 @@ class CaffeBenchmark(object):
         logging.info('intelcaffe log: %s' % intelcaffe_log)
         return intelcaffe_log
     
-     def decode_sec(self, time_str):
+    def decode_sec(self, time_str):
         start_time = time_str.split()[2]
         datetime_object = datetime.strptime(start_time, '%H:%M:%S.%f')
         return datetime_object
