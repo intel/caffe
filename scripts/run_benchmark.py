@@ -6,6 +6,8 @@ import time
 import json
 import socket
 import logging
+from datetime import datetime
+
 
 class CaffeBenchmark(object):
     '''Used to do caffe benchmarking'''
@@ -273,6 +275,30 @@ class CaffeBenchmark(object):
         logging.info('intelcaffe log: %s' % intelcaffe_log)
         return intelcaffe_log
     
+    def decode_sec(self, time_str):
+        start_time = time_str.split()[2]
+        datetime_object = datetime.strptime(start_time, '%H:%M:%S.%f')
+        return datetime_object
+    
+    def obtain_total_time(self, result_file):
+        res = 0.0
+        with open(result_file, 'r') as f:
+            delta_time_pattern = re.compile("Iteration 0")
+            first_line = ""
+            last_line = ""
+            for line in f.readlines():
+                if first_line=="" and line.find("Iteration 0")>=0:
+                    first_line = line
+                if line.find("Optimization Done.") >= 0:
+                    last_line = line
+
+            if first_line!="" and last_line!="":
+                start_time = self.decode_sec(first_line)
+                end_time = self.decode_sec(last_line)
+                res = (end_time- start_time).total_seconds()
+
+        return res
+
     def obtain_average_time(self):
         '''obtain average iteration time of training'''
         result_file = self.intelcaffe_log
@@ -313,9 +339,15 @@ class CaffeBenchmark(object):
                     if re.match(delta_time_pattern, line):
                         delta_times.append(line.split()[-2])
             if len(delta_times) == 0:
-                logging.exception("Error: check if you mark 'CAFFE_PER_LAYER_TIMINGS := 1' while building caffe; also ensure you're running at least 200 iterations for multinode trainings; or check if you're running intelcaffe failed, the logs can be found under: {}".format(result_file))
+                logging.exception("Warn: check if you mark 'CAFFE_PER_LAYER_TIMINGS := 1' while building caffe; also ensure you're running at least 200 iterations for multinode trainings; or check if you're running intelcaffe failed, the logs can be found under: {}".format(result_file))
             for delta_time in delta_times[start_iteration : start_iteration + iteration_num]:
                 total_time += float(delta_time)
+                
+            if total_time == 0.0:
+                logging.info("Obtain total running time without CAFFE_PER_LAYER_TIMINGS := 1 in building caffe")
+                total_time = self.obtain_total_time(result_file)
+                iteration_num = 200
+
             average_time = total_time / iteration_num * 1000.0
         logging.info("average time: {} ms".format(str(average_time)))
         return average_time
@@ -343,6 +375,8 @@ class CaffeBenchmark(object):
         '''calculate fps here'''
         self.batch_size = self.obtain_batch_size()
         self.average_time = self.obtain_average_time()
+        logging.info("batch size: %d, average time: %f" % \
+            (self.batch_size, self.average_time))
         speed = self.batch_size * 1000.0 / self.average_time
         self.speed = float(speed)
         total_speed = self.speed * int(self.inf_instances)
