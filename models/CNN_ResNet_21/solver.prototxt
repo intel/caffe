@@ -1,0 +1,22 @@
+net: "WiAU_2.0_CNN+ResNet.prototxt"
+
+test_iter: 100 
+
+test_interval: 400
+
+base_lr: 0.01   
+momentum: 0.9   
+weight_decay: 0.0005  
+
+lr_policy: "inv" 
+gamma: 0.0001
+power: 0.75
+
+display: 100
+
+max_iter: 100000
+
+snapshot: 5000
+snapshot_prefix: "WiAU_v2/result"
+
+solver_mode: GPU
