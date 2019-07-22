@@ -39,11 +39,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CAFFE_VIDEO_DATA_LAYER_HPP_
 
 #ifdef USE_OPENCV
-#if OPENCV_VERSION == 3
+#if OPENCV_VERSION >= 3
 #include <opencv2/videoio.hpp>
 #else
 #include <opencv2/opencv.hpp>
-#endif  // OPENCV_VERSION == 3
+#endif  // OPENCV_VERSION >= 3
 
 #include <string>
 #include <vector>
