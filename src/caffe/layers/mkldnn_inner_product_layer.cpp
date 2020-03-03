@@ -354,10 +354,13 @@ void MKLDNNInnerProductLayer<Dtype>::InitInnerProductFwd(const vector<Blob<Dtype
             #pragma omp parallel for if (count > 1)
             #endif
             for(int i=0; i<count; i++){
-              if (this->scale_params_[i] == 0.0)
-                  scale_bias[i] = 1.0;
-              else
-                  scale_bias[i] = this->scale_in_[0] * this->scale_params_[i];
+              if (this->scale_params_[i] == 0.0){
+                scale_bias[i] = 1.0;
+              }
+              else{
+                scale_bias[i] = this->scale_in_[0] * this->scale_params_[i];
+              }
+                  
             }
           } else{
             scale_bias[0] = 1.0f;
