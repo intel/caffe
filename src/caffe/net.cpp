@@ -1448,7 +1448,7 @@ void Net<Dtype>::CopyTrainedLayersFrom(const NetParameter& param_inp) {
 }
 
 template <typename Dtype>
-void Net<Dtype>::CopyTrainedLayersFrom(const string trained_filename) {
+void Net<Dtype>::CopyTrainedLayersFrom(const string& trained_filename) {
   if (trained_filename.size() >= 3 &&
       trained_filename.compare(trained_filename.size() - 3, 3, ".h5") == 0) {
     CopyTrainedLayersFromHDF5(trained_filename);
@@ -1459,14 +1459,14 @@ void Net<Dtype>::CopyTrainedLayersFrom(const string trained_filename) {
 
 template <typename Dtype>
 void Net<Dtype>::CopyTrainedLayersFromBinaryProto(
-    const string trained_filename) {
+    const string& trained_filename) {
   NetParameter param;
   ReadNetParamsFromBinaryFileOrDie(trained_filename, &param);
   CopyTrainedLayersFrom(param);
 }
 
 template <typename Dtype>
-void Net<Dtype>::CopyTrainedLayersFromHDF5(const string trained_filename) {
+void Net<Dtype>::CopyTrainedLayersFromHDF5(const string& trained_filename) {
   hid_t file_hid = H5Fopen(trained_filename.c_str(), H5F_ACC_RDONLY,
                            H5P_DEFAULT);
   CHECK_GE(file_hid, 0) << "Couldn't open " << trained_filename;
