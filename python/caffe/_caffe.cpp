@@ -460,7 +460,7 @@ BOOST_PYTHON_MODULE(_caffe) {
     .def("clear_param_diffs", static_cast<void (Net<Dtype>::*)(void)>(
     &Net<Dtype>::ClearParamDiffs))
     // The cast is to select a particular overload.
-    .def("copy_from", static_cast<void (Net<Dtype>::*)(const string)>(
+    .def("copy_from", static_cast<void (Net<Dtype>::*)(const string&)>(
         &Net<Dtype>::CopyTrainedLayersFrom))
     .def("share_with", &Net<Dtype>::ShareTrainedLayersWith)
     .add_property("_blob_loss_weights", bp::make_function(
