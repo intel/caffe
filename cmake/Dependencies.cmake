@@ -281,6 +281,7 @@ if(APPLE OR WIN32)
 else()
   set(LIBDIR lib64)
 endif()
+set(LIBDIR ${CMAKE_INSTALL_LIBDIR})
 
 # ---[ MKLDNN
 if(DEFINED ENV{MKLDNNROOT})
