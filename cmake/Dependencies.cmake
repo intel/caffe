@@ -279,7 +279,7 @@ endif()
 if(APPLE OR WIN32)
   set(LIBDIR lib)
 else()
-  set(LIBDIR lib64)
+  set(LIBDIR lib)
 endif()
 
 # ---[ MKLDNN
