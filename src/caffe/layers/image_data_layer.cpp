@@ -119,7 +119,7 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
 
   if (this->layer_param_.transform_param().bgr2rgb()) {
-    cv::cvtColor(cv_img, cv_img, CV_BGR2RGB);
+    cv::cvtColor(cv_img, cv_img, cv::COLOR_BGR2RGB);
   }
 
   // Use data_transformer to infer the expected blob shape from a cv_image.
@@ -179,7 +179,7 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
 
   if (this->layer_param_.transform_param().bgr2rgb()) {
-    cv::cvtColor(cv_img, cv_img, CV_BGR2RGB);
+    cv::cvtColor(cv_img, cv_img, cv::COLOR_BGR2RGB);
   }
 
   // Use data_transformer to infer the expected blob shape from a cv_img.
@@ -208,7 +208,7 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         new_height, new_width, is_color, min_height, min_width);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
     if (this->layer_param_.transform_param().bgr2rgb()) {
-      cv::cvtColor(cv_img, cv_img, CV_BGR2RGB);
+      cv::cvtColor(cv_img, cv_img, cv::COLOR_BGR2RGB);
     }
 
     read_time += timer.MicroSeconds();
