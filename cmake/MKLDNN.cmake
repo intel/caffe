@@ -33,7 +33,7 @@ function(Download_MKLDNN)
                       CMAKE_GENERATOR ${MKLDNN_CMAKE_GENERATOR}
                       CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=${MKLDNN_INSTALL_DIR} -DMKLROOT=${MKL_ROOT_DIR} -DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}
 #--Download step
-                      GIT_REPOSITORY https://github.com/intel/mkl-dnn.git
+                      GIT_REPOSITORY https://github.com/oneapi-src/oneDNN.git
                       GIT_TAG ${MKLDNN_COMMIT}
 #--Build step
                       BINARY_DIR ${MKLDNN_BUILD_DIR}
