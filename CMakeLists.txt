@@ -126,7 +126,7 @@ elseif(UNIX OR APPLE)
   # Generic flags.
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -fno-operator-names -Wformat -Wformat-security -Wall")
   if(NOT CODE_COVERAGE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Werror")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -lrt -lmpi")
   endif()
   # Dot not forward c++11 flag to GPU beucause it is not supported
   set( CUDA_PROPAGATE_HOST_FLAGS OFF )
