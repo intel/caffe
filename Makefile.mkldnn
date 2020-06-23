@@ -21,7 +21,7 @@ ifneq (,$(findstring ccache,$(CC)))
 	MKLDNN_CC := $(lastword $(CC))
 endif
 
-MKLDNN_GITHUB := https://github.com/01org/mkl-dnn.git
+MKLDNN_GITHUB := https://github.com/oneapi-src/oneDNN.git
 # Enable MKLDNN intel compiler static build
 ifneq (,$(findstring icpc,$(MKLDNN_CXX)))
 	ifeq ($(ICC_STATIC_BUILD), 1)
