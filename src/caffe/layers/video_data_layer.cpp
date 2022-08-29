@@ -50,6 +50,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "caffe/layers/video_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 
+#if CV_VERSION_MAJOR == 4
+#define CV_CAP_PROP_POS_FRAMES cv::CAP_PROP_POS_FRAMES
+#define CV_CAP_PROP_FRAME_COUNT cv::CAP_PROP_FRAME_COUNT
+#endif
+
 namespace caffe {
 
 template <typename Dtype>

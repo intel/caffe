@@ -37,7 +37,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
+
+#if CV_VERSION_MAJOR == 4
+#include <opencv2/imgproc.hpp>
+#define CV_BGR2RGB cv::COLOR_BGR2RGB
+#define CV_FILLED cv::FILLED
+#else
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 
 #include <fstream>  // NOLINT(readability/streams)
 #include <iostream>  // NOLINT(readability/streams)
@@ -239,7 +246,7 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         Blob<Dtype> tmp_data;
         tmp_data.Reshape(top_shape);
         tmp_data.set_cpu_data(prefetch_data + offset);
-        this->data_transformer_->Transform(cv_img, &tmp_data, 
+        this->data_transformer_->Transform(cv_img, &tmp_data,
                                                   precalculated_rand_numbers);
     }
 #endif
